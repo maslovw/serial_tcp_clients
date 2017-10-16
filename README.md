@@ -1,5 +1,5 @@
 # Info
-Python script create a tcp server for sharing serial console
+Python script starts TCP Server for sharing serial console
 
 ```
 clientA <-->\
