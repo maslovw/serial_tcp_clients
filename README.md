@@ -1,11 +1,30 @@
-# serial_tcp_clients
+# Info
 Python script create a tcp server for sharing serial console
 
-# Install
-python3 setup.py install
+```
+clientA <-->\
+             | <-----> TcpServer <---> serial port
+clientB <-->/
+```
+Serial port is opened if at least one client is connected. 
 
-# Use
-python -m serialtcp.tcp_server -p PORT -d COM -b BAUDRATE
+If all clients are disconnected, then the serial port is closed.
+
+Works in Windows and Linux (incl. RaspberryPi) 
+
+# Requerements
+python3
+* pyserial (https://github.com/pyserial/pyserial)
+
+# Install
+`git clone https://github.com/maslovw/serial_tcp_clients.git`
+
+`cd serial_tcp_clients`
+
+`python3 setup.py install`
+
+# Usage
+`python -m serialtcp.tcp_server -p PORT -d COM -b BAUDRATE`
 
 ## Arguments:
 ```
@@ -34,4 +53,4 @@ serial port:
 ```
 
 ## example
-python -m serialtcp.tcp_server -p 5001 -d COM1 -b 921600 -v info -we 1
+`python -m serialtcp.tcp_server -p 5001 -d COM1 -b 921600 -v info -we 1`
