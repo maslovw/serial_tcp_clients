@@ -28,28 +28,33 @@ class SerialToNet(serial.threaded.Protocol):
         return self
 
     def send_serial(self, data):
-        if self.char_delay or self.wait_echo:
-            for b in data:
-                self.ser.write( bytes([b]))  # get a bunch of bytes and send them
-                if self.char_delay:
-                    time.sleep(self.char_delay)
-                if self.wait_echo:
-                    if b:
-                        t = time.time()
-                        while (time.time() - t) < self.wait_echo:
-                            if self.lastbyte == b:
-                                self.lastbyte = 0
-                                break
-        else:
-            logger.info('No char delay')
-            self.ser.write(data)
+        try:
+            if self.char_delay or self.wait_echo:
+                for b in data:
+                    self.ser.write( bytes([b]))  # get a bunch of bytes and send them
+                    if self.char_delay:
+                        time.sleep(self.char_delay)
+                    if self.wait_echo:
+                        if b:
+                            t = time.time()
+                            while (time.time() - t) < self.wait_echo:
+                                if self.lastbyte == b:
+                                    self.lastbyte = 0
+                                    break
+            else:
+                self.ser.write(data)
+        except Exception as e:
+            logger.warning(e)
 
     def data_received(self, data):
         self.lastbyte = data[-1]
         if len(data)>1:
             logger.debug('Data from {}: {}'.format(self.ser.port, data))
-        for sock in self.socket:
-            sock.sendall(data)
+        try:
+            for sock in self.socket:
+                sock.sendall(data)
+        except Exception as e:
+            logger.warning(e)
 
 
 class SerialServer():
@@ -65,19 +70,23 @@ class SerialServer():
         self.ser_to_net = SerialToNet(self.ser, char_delay, wait_echo)
 
     def _connect_serial(self):
-        if self.ser is None:
-            self.ser = serial.serial_for_url(self.conf['device'], do_not_open=True)
-            self.ser.baudrate = self.conf['baudrate']
-            self.ser.parity = self.conf['parity']
-            if not self._open_serial():
-                return False
+        try:
+            if self.ser is None:
+                self.ser = serial.serial_for_url(self.conf['device'], do_not_open=True)
+                self.ser.baudrate = self.conf['baudrate']
+                self.ser.parity = self.conf['parity']
+                if not self._open_serial():
+                    return False
 
-            self.ser_to_net.ser = self.ser
-            self.serial_worker = serial.threaded.ReaderThread(self.ser, self.ser_to_net)
-            self.serial_worker.start()
-        elif not self.ser.is_open:
-            return self._open_serial()
-        return True
+                self.ser_to_net.ser = self.ser
+                self.serial_worker = serial.threaded.ReaderThread(self.ser, self.ser_to_net)
+                self.serial_worker.start()
+            elif not self.ser.is_open:
+                return self._open_serial()
+            return True
+        except Exception as e:
+            logger.error("Can not connect to serial: {}".format(e))
+            return False
 
     def _open_serial(self):
         try:
@@ -89,9 +98,12 @@ class SerialServer():
         return True
 
     def _close_serial(self):
-        if self.serial_worker and self.ser and self.ser.is_open:
-            self.serial_worker.close()
-            self.ser = None
+        try:
+            if self.serial_worker and self.ser and self.ser.is_open:
+                self.serial_worker.close()
+                self.ser = None
+        except Exception as e:
+            logger.warning(e)
 
     def _make_thread(self, socket, addr):
         logger.info('Connected by {}\n'.format(addr))
@@ -124,20 +136,6 @@ class SerialServer():
             except KeyboardInterrupt:
                 self.stop=True
                 exit(0)
-
-    def send_serial(self, data):
-        for b in data:
-            logger.debug('send serial: {}'.format(b))
-            self.ser.write( bytes([b]))  # get a bunch of bytes and send them
-            time.sleep(0.001)
-            if b:
-                t = time.time()
-                while time.time() - t < 0.5:
-                    if self.ser_to_net.lastbyte == b:
-                        # logger.debug('got from serial {}'.format(b))
-                        break
-                        # print(bytes([b]), end=' ')
-                        # print('--')
 
     def worker(self, client_socket, addr):
         intentional_exit = False
@@ -178,7 +176,6 @@ class SerialServer():
                     except socket.error as msg:
                         logger.error('{}: {}\n'.format(addr, msg))
                         # probably got disconnected
-                        break
                     if self.stop:
                         break
             else:
@@ -187,7 +184,6 @@ class SerialServer():
             raise
         except socket.error as msg:
             logger.error('{}: {}\n'.format(addr, msg))
-            raise
         finally:
             self.ser_to_net.socket.remove(client_socket)
             logger.info('{} is disconnected\n'.format(addr))

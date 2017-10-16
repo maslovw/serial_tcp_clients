@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='serial_tcp_clients',
-    version='1.0',
+    version='1.01',
     packages=['serialtcp'],
     install_requires=['pyserial>=3.3'],
     url='',
