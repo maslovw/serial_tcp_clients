@@ -10,6 +10,10 @@ Serial port is opened if at least one client is connected.
 
 If all clients are disconnected, then the serial port is closed.
 
+If connection with serial device was lost, all TCP clients get notification, 
+but connection will be kept, and the script will make attempts to open 
+serial device.
+
 Works in Windows and Linux (incl. RaspberryPi) 
 
 # Requerements
@@ -24,7 +28,7 @@ python3
 `python3 setup.py install`
 
 # Usage
-`python -m serialtcp.tcp_server -p PORT -d COM -b BAUDRATE`
+`python -m serialtcp -p PORT -d COM -b BAUDRATE`
 
 ## Arguments:
 ```
@@ -53,4 +57,4 @@ serial port:
 ```
 
 ## example
-`python -m serialtcp.tcp_server -p 5001 -d COM1 -b 921600 -v info -we 1`
+`python -m serialtcp -p 5001 -d COM1 -b 921600 -v info -we 1`
