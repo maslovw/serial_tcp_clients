@@ -22,10 +22,17 @@ def main(**kwargs):
         server.send_to_all(data)
 
     def on_tcp_connect(client):
+        if not serial_port.is_connected:
+            serial_port.open()
+
         client.send('\x02Device: {}\x03\r\n'.format(device).encode())
         client.send('\x02Baudrate: {}\x03\r\n'.format(serial_port.serial.baudrate).encode())
         if not serial_port.is_connected:
             client.send('\x02Device: {} is not accessible\x03\r\n'.format(serial_port.serial.port).encode())
+
+    def on_tcp_disconnect(client):
+        if len(server.get_clients()) == 0:
+            serial_port.close()
 
     def on_serial_connect():
         server.send_to_all('\x02Device: {} is connected\x03\r\n'.format(serial_port.serial.port).encode())
@@ -39,9 +46,13 @@ def main(**kwargs):
                              on_disconnect=on_serial_disconnect,
                              keep_active=True,
                              **kwargs)
-    server = SerialServer(tcp_port, on_tcp_receive=on_tcp_receive, on_client_connect=on_tcp_connect)
 
-    serial_port.open()
+    server = SerialServer(tcp_port,
+                          on_tcp_receive=on_tcp_receive,
+                          on_client_connect=on_tcp_connect,
+                          on_client_disconnect=on_tcp_disconnect)
+
+    # serial_port.open()
     server.run()
 
     while True:

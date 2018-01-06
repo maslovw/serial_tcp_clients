@@ -8,8 +8,9 @@ import logging
 
 class SerialServer():
     def __init__(self, port,
-                 on_tcp_receive=lambda x:None,
-                 on_client_connect=lambda x:None):
+                 on_tcp_receive=lambda data:None,
+                 on_client_connect=lambda client:None,
+                 on_client_disconnect=lambda client:None ):
         # self.port = kwargs['tcp_port']
         self.logger = logging.getLogger('Server {}'.format(port))
         self.port = port
@@ -21,11 +22,13 @@ class SerialServer():
         self.socket = socket.socket()
         self.client_on_recv = on_tcp_receive
         self.on_client_connect = on_client_connect
+        self.on_client_disconnect = on_client_disconnect
         self.lock = threading.Lock()
 
     def __remove_client(self, client: SerialClient):
         with self.lock:
             self.clients.remove(client)
+        self.on_client_disconnect(client)
 
     def __thread_accept_client(self):
         self.ready.set()

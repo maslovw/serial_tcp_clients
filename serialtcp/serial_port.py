@@ -37,12 +37,18 @@ class SerialPort():
 
 
     def open(self):
+        self._close_set = False
+        self.__open()
+
+    def __open(self, throw=False):
         with self.lock:
             try:
                 self.serial.open()
-            except serial.SerialException:
+            except serial.SerialException as e:
                 if not self.serial.is_open:
-                    self.logger.error("can not open the port")
+                    if  throw:
+                        raise
+                    self.logger.error("open port failed: {}".format(e))
             self.is_connected = self.serial.is_open
             if self.is_connected:
                 self.receive_therad = threading.Thread(target=self.__async_receiver)
@@ -111,9 +117,12 @@ class SerialPort():
         while not self.serial.is_open and not self._close_set:
             p_list = list_ports.comports()
             p_names = (x.device for x in p_list)
-            if self.serial.port in p_names:
-                self.open()
-            else:
+            try:
+                if self.serial.port in p_names and not self.serial.isOpen():
+                    self.__open(throw=True)
+                else:
+                    time.sleep(self.timeout)
+            except serial.SerialException:
                 time.sleep(self.timeout)
         self.logger.debug("try to reconnect stop {} {}".format(self.serial.is_open, self._close_set))
 
