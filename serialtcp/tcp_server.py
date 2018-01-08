@@ -162,7 +162,7 @@ def parse_args():
     if args.list:
         for port in list_ports.comports(True):
             print(port.device)
-            exit(0)
+        return
 
     for k,v in vars(args).items():
         logger.debug("{}: {}".format(k, v))
