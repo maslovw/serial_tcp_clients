@@ -21,6 +21,9 @@ python3
 * pyserial (https://github.com/pyserial/pyserial)
 
 # Install
+using pip: `pip install serial-tcp-clients`
+
+or using source via python setup:
 `git clone https://github.com/maslovw/serial_tcp_clients.git`
 
 `cd serial_tcp_clients`
