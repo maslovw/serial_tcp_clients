@@ -17,7 +17,7 @@ class SerialServer():
         # self.conf = kwargs
         self.__stop = False
         self.clients = set()
-        self.thread_accept = threading.Thread(target=SerialServer.__thread_accept_client, args=(self,))
+        self.thread_accept = threading.Thread(target=SerialServer.__thread_accept_client, args=(self,), daemon=True)
         self.ready = threading.Event()
         self.socket = socket.socket()
         self.client_on_recv = on_tcp_receive
@@ -28,6 +28,7 @@ class SerialServer():
     def __remove_client(self, client: SerialClient):
         with self.lock:
             self.clients.remove(client)
+        self.logger.debug("client disconnected: {}, remaining: {}".format(client.address, len(self.clients)))
         self.on_client_disconnect(client)
 
     def __thread_accept_client(self):
@@ -41,16 +42,16 @@ class SerialServer():
                                       on_received=self.client_on_recv)
                 with self.lock:
                     self.clients.add(client)
+                self.logger.debug("client connected: {}, total: {}".format(address, len(self.clients)))
                 client.start()
             except socket.timeout:
                 if self.__stop:
                     return
                 continue
             except Exception as e:
+                if self.__stop:
+                    return
                 self.logger.error("accept client failed: {}".format(e))
-
-            if self.__stop:
-                return
             # self._make_thread(client_socket, addr)
 
     def __start_accept_thread(self):
@@ -68,13 +69,12 @@ class SerialServer():
             client.stop()
 
     def stop(self):
+        self.logger.debug("stopping server, {} clients connected".format(len(self.clients)))
         self.__set_stop()
-        self.thread_accept.join()
         self.socket.close()
-        # while len(self.clients):
-        #    time.sleep(1)
+        self.thread_accept.join(timeout=3)
         for client in self.get_clients():
-            client.thread.join()
+            client.thread.join(timeout=3)
 
     def get_clients(self):
         with self.lock:

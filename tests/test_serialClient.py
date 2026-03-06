@@ -16,7 +16,7 @@ class TestSerialClient(TestCase):
         self.assertIsNotNone(client.thread)
         client.stop()
         sleep(1)
-        self.assertFalse(client.thread.isAlive())
+        self.assertFalse(client.thread.is_alive())
         self.assertTrue(client.socket._closed)
 
 

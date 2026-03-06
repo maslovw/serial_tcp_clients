@@ -2,6 +2,8 @@
 from serialtcp.server import SerialServer
 from serialtcp.serial_port import SerialPort
 import time
+import signal
+import sys
 
 import logging
 
@@ -14,18 +16,51 @@ def start_service(**kwargs):
     debug = kwargs.get('verbose', 'error') == 'debug'
 
     stop = []
+
+    def request_stop(*args):
+        stop.append(1)
+
+    signal.signal(signal.SIGTERM, request_stop)
+    if hasattr(signal, 'SIGHUP'):
+        signal.signal(signal.SIGHUP, request_stop)
+
+    def strip_telnet_commands(data):
+        """Remove Telnet IAC sequences (3-byte commands) from data."""
+        result = bytearray()
+        i = 0
+        while i < len(data):
+            if data[i] == 0xff and i + 2 < len(data) and data[i + 1] in (0xfb, 0xfc, 0xfd, 0xfe):
+                i += 3  # skip IAC WILL/WONT/DO/DONT <option>
+            else:
+                result.append(data[i])
+                i += 1
+        return bytes(result)
+
     def on_tcp_receive(data):
         if 'exit\xff'.encode() in data:
             stop.append(1)
         else:
+            if kwargs.get('char_mode', False):
+                data = strip_telnet_commands(data)
+                if not data:
+                    return
             serial_port.send(data)
 
     def on_serial_receive(data):
         server.send_to_all(data)
 
+    # Telnet negotiation: switch client to character-at-a-time mode
+    TELNET_CHAR_MODE = b'\xff\xfb\x01' \
+                       b'\xff\xfb\x03'  # IAC WILL ECHO, IAC WILL SUPPRESS-GO-AHEAD
+
     def on_tcp_connect(client):
+        logger.debug("tcp client connected: {}".format(client.address))
         if not serial_port.is_connected:
+            logger.debug("opening serial port for first client")
             serial_port.open()
+
+        if kwargs.get('char_mode', False):
+            client.send(TELNET_CHAR_MODE)
 
         if debug:
             client.send('Connection established: {}\r\n'.format(client.address).encode())
@@ -35,14 +70,19 @@ def start_service(**kwargs):
                 client.send('\x02Device: {} is not accessible\x03\r\n'.format(serial_port.serial.port).encode())
 
     def on_tcp_disconnect(client):
-        if len(server.get_clients()) == 0:
+        remaining = len(server.get_clients())
+        logger.debug("tcp client disconnected: {}, remaining: {}".format(client.address, remaining))
+        if remaining == 0:
+            logger.debug("last client disconnected, closing serial port")
             serial_port.close()
 
     def on_serial_connect():
+        logger.debug("serial device connected: {}".format(serial_port.serial.port))
         if debug:
             server.send_to_all('\x02Device: {} is connected\x03\r\n'.format(serial_port.serial.port).encode())
 
     def on_serial_disconnect():
+        logger.debug("serial device disconnected: {}".format(serial_port.serial.port))
         if debug:
             server.send_to_all('\x02Device: {} is disconnected\x03\r\n'.format(serial_port.serial.port).encode())
 
@@ -58,22 +98,20 @@ def start_service(**kwargs):
                           on_client_connect=on_tcp_connect,
                           on_client_disconnect=on_tcp_disconnect)
 
-    # serial_port.open()
+    logger.debug("starting service on tcp port {} for device {}".format(tcp_port, device))
     server.run()
 
-    while True:
+    while not stop:
         try:
             time.sleep(1)
         except KeyboardInterrupt:
-            print("Keyboard Interrupt")
-            break
-        if len(stop):
-            print("STOP!")
             break
 
+    logger.debug("shutting down service")
     server.send_to_all('\x02Session is closed\x03\r\n\x04'.encode())
     server.stop()
     serial_port.close()
+    logger.debug("service stopped")
 
 def parse_args():
     from serial.tools import list_ports
@@ -147,6 +185,13 @@ def parse_args():
     #     default=None)
 
     group.add_argument(
+        '-cm', '--char-mode',
+        action='store_true',
+        help='send characters one at a time to serial (default off)',
+        default=False
+    )
+
+    group.add_argument(
         '-cd', '--char-delay',
         type=float,
         help='set delay between chars for serial transmission, default: 0.0s',
@@ -162,7 +207,14 @@ def parse_args():
 
     args = aparse.parse_args()
 
-    logger.setLevel(args.verbose.upper())
+    log_fmt = '[%(asctime)s:%(msecs)03d]:%(name)s:%(levelname)s:%(message)s'
+    log_datefmt = '%d.%m.%y %H:%M:%S'
+    root = logging.getLogger()
+    root.handlers.clear()
+    root.setLevel(args.verbose.upper())
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(log_fmt, datefmt=log_datefmt))
+    root.addHandler(handler)
 
     if args.list:
         for port in list_ports.comports(True):

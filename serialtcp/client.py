@@ -48,7 +48,7 @@ class SerialClient():
         self.logger.debug("start")
 
         self.err_cnt = 0
-        self.thread = threading.Thread(target=SerialClient.run, args=(self, ))
+        self.thread = threading.Thread(target=SerialClient.run, args=(self, ), daemon=True)
         self.thread.start()
 
     def on_received(self, data):
@@ -56,7 +56,7 @@ class SerialClient():
         Dummy method
         Data received from TCP
         """
-        self.logger.debug("received: {}".format(data))
+        self.logger.debug("received: {} bytes".format(len(data)))
         if '\x1b[A\r'.encode() in data:
             self.send(self.history.pop())
         else:
@@ -69,11 +69,19 @@ class SerialClient():
         :param data:
         :return:
         """
-        self.logger.debug("send: {}".format(data))
-        self.socket.sendall(data)
+        self.logger.debug("send: {} bytes".format(len(data)))
+        try:
+            self.socket.sendall(data)
+        except Exception as e:
+            self.logger.error("send failed: {}".format(e))
+            self.err_cnt += 1
 
     def stop(self):
         self._stop = True
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+        except Exception:
+            pass
 
     def run(self):
         self.logger.info('connected')
@@ -85,7 +93,7 @@ class SerialClient():
                 if len(data):
                     self.on_received(data)
                 else:
-                    self.logger.debug("client disconnected")
+                    self.logger.info("disconnected")
                     self.stop()
             except socket.timeout:
                 continue

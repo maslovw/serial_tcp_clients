@@ -17,6 +17,7 @@ class SerialPort():
         self.serial.stopbits = kwargs.get('stopbits', serial.STOPBITS_ONE)
         self.serial.xonxoff = kwargs.get('xonxoff', False)
 
+        self.char_mode = kwargs.get('char_mode', False)
         self.wait_echo = kwargs.get('wait_echo', False)
         self.send_char_delay = kwargs.get('char_delay', None)
         self.timeout = kwargs.get('timeout', 2)
@@ -27,7 +28,7 @@ class SerialPort():
         self._on_received = on_received
         if not on_received:
             self._on_received = lambda x: x
-        self.receive_therad = threading.Thread(target=self.__async_receiver)
+        self.receive_thread = None
         self.keep_active = keep_active
         self.reconnect_thread = None
         self._close_set = False
@@ -51,31 +52,37 @@ class SerialPort():
                     self.logger.error("open port failed: {}".format(e))
             self.is_connected = self.serial.is_open
             if self.is_connected:
-                self.receive_therad = threading.Thread(target=self.__async_receiver)
-                self.receive_therad.start()
+                self.logger.debug("opened port {} at {} baud".format(self.serial.port, self.serial.baudrate))
+                self.receive_thread = threading.Thread(target=self.__async_receiver, daemon=True)
+                self.receive_thread.start()
             else:
                 if self.keep_active:
-                    if not self.reconnect_thread or not self.reconnect_thread.isAlive :
-                        self.reconnect_thread = threading.Thread(target=self.__try_to_connect)
+                    if not self.reconnect_thread or not self.reconnect_thread.is_alive():
+                        self.reconnect_thread = threading.Thread(target=self.__try_to_connect, daemon=True)
                         self.reconnect_thread.start()
 
 
     def __close(self):
+        was_connected = self.is_connected
         if self.serial.is_open:
+            self.logger.debug("closing port {}".format(self.serial.port))
             try:
                 self.serial.close()
             except Exception as e:
                 self.logger.error("close fail: {}".format(e))
         self.is_connected = False
-        self.on_disconnect()
+        if was_connected:
+            self.on_disconnect()
 
     def close(self):
+        self._close_set = True
         with self.lock:
-            self._close_set = True
             self.__close()
-            if self.reconnect_thread:
-                self.reconnect_thread.join()
-                self.reconnect_thread = None
+        if self.receive_thread and self.receive_thread.is_alive():
+            self.receive_thread.join(timeout=3)
+        if self.reconnect_thread and self.reconnect_thread.is_alive():
+            self.reconnect_thread.join(timeout=3)
+            self.reconnect_thread = None
 
     def set_on_received(self, on_received):
         self._on_received = on_received
@@ -84,7 +91,7 @@ class SerialPort():
         """
         received data from serial
         """
-        self.logger.debug("rx:{}".format(data))
+        self.logger.debug("rx: {} bytes".format(len(data)))
         self.lastbyte = data[-1]
         self._on_received(data)
 
@@ -99,14 +106,14 @@ class SerialPort():
                 if len(data):
                     self.on_received(data)
             except Exception as e:
-                self.logger.error("rx fail: {}".format(e))
+                if not self._close_set:
+                    self.logger.error("rx fail: {}".format(e))
                 break
-        # recognized a device disconnect
         if not self._close_set:
             if self.keep_active:
                 with self.lock:
                     self.__close()
-                    self.reconnect_thread = threading.Thread(target=self.__try_to_connect)
+                    self.reconnect_thread = threading.Thread(target=self.__try_to_connect, daemon=True)
                     self.reconnect_thread.start()
             else:
                 self.close()
@@ -141,10 +148,10 @@ class SerialPort():
                             break
 
     def send(self, data):
-        self.logger.debug("tx:{}".format(data))
+        self.logger.debug("tx: {} bytes".format(len(data)))
         with self.lock:
             try:
-                if self.send_char_delay or self.wait_echo:
+                if self.char_mode or self.send_char_delay or self.wait_echo:
                     self.__send_chars(data)
                 else:
                     self.serial.write(data)
