@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "serial-tcp-clients"
+version = "2.1.0"
+description = "Share serial device through TCP connections"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    {name = "maslovw", email = "serialtcp@maslovw.com"},
+]
+keywords = ["serial", "com", "port", "tcp", "server", "socket"]
+dependencies = [
+    "pyserial>=3.3",
+]
+
+[project.scripts]
+serial-tcp-server = "serialtcp.tcp_server:parse_args"
+
+[project.urls]
+Homepage = "https://github.com/maslovw/serial_tcp_clients"
