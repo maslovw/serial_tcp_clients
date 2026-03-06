@@ -1,39 +1,52 @@
-# Info
-Python script starts TCP Server for sharing serial console
+# serial-tcp-server
+
+TCP server for sharing a serial console across multiple TCP clients.
 
 ```
 clientA <-->\
              | <-----> TcpServer <---> serial port
 clientB <-->/
 ```
-Serial port is opened if at least one client is connected. 
 
-If all clients are disconnected, then the serial port is closed.
+The serial port opens when the first client connects and closes when
+the last client disconnects. If the serial device is lost, all TCP
+clients are kept connected while the server attempts to reconnect.
 
-If connection with serial device was lost, all TCP clients get notification, 
-but connection will be kept, and the script will make attempts to open 
-serial device.
+Works on Windows and Linux (including Raspberry Pi).
 
-Works in Windows and Linux (incl. RaspberryPi) 
+## Requirements
 
-# Requerements
-python3
-* pyserial (https://github.com/pyserial/pyserial)
+- Python >= 3.9
+- pyserial >= 3.3
 
-# Install
-using pip: `pip install serial-tcp-clients`
+## Install
 
-or using source via python setup:
-`git clone https://github.com/maslovw/serial_tcp_clients.git`
+```bash
+pip install serial-tcp-clients
+```
 
-`cd serial_tcp_clients`
+Or from source:
 
-`python3 setup.py install`
+```bash
+git clone https://github.com/maslovw/serial_tcp_clients.git
+cd serial_tcp_clients
+pip install .
+```
 
-# Usage
-`python -m serialtcp -p PORT -d COM -b BAUDRATE`
+## Usage
 
-## Arguments:
+```bash
+serial-tcp-server -p PORT -d DEVICE -b BAUDRATE
+```
+
+Or via module:
+
+```bash
+python -m serialtcp -p PORT -d DEVICE -b BAUDRATE
+```
+
+### Arguments
+
 ```
 optional arguments:
   -h, --help            show this help message and exit
@@ -51,6 +64,7 @@ serial port:
   -b BAUDRATE, --baudrate BAUDRATE
                         default: 115200
   --parity {N,E,O,S,M}  set parity, one of {N E O S M}, default: N
+  --xonxoff             enable software flow control (default off)
   -cd CHAR_DELAY, --char-delay CHAR_DELAY
                         set delay between chars for serial transmission,
                         default: 0.0s
@@ -59,5 +73,11 @@ serial port:
                         timeout in seconds, default: 0
 ```
 
-## example
-`python -m serialtcp -p 5001 -d COM1 -b 921600 -v info -we 1`
+### Example
+
+```bash
+serial-tcp-server -p 5001 -d COM1 -b 921600 -v info -we 1
+```
+
+Use `-v debug` to send connection status messages (device, baudrate,
+connect/disconnect events) to TCP clients.

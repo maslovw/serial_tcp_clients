@@ -11,6 +11,7 @@ logger = logging.getLogger('Main')
 def start_service(**kwargs):
     tcp_port = kwargs['tcp_port']
     device = kwargs.get('device', None)
+    debug = kwargs.get('verbose', 'error') == 'debug'
 
     stop = []
     def on_tcp_receive(data):
@@ -26,20 +27,24 @@ def start_service(**kwargs):
         if not serial_port.is_connected:
             serial_port.open()
 
-        client.send('\x02Device: {}\x03\r\n'.format(device).encode())
-        client.send('\x02Baudrate: {}\x03\r\n'.format(serial_port.serial.baudrate).encode())
-        if not serial_port.is_connected:
-            client.send('\x02Device: {} is not accessible\x03\r\n'.format(serial_port.serial.port).encode())
+        if debug:
+            client.send('Connection established: {}\r\n'.format(client.address).encode())
+            client.send('\x02Device: {}\x03\r\n'.format(device).encode())
+            client.send('\x02Baudrate: {}\x03\r\n'.format(serial_port.serial.baudrate).encode())
+            if not serial_port.is_connected:
+                client.send('\x02Device: {} is not accessible\x03\r\n'.format(serial_port.serial.port).encode())
 
     def on_tcp_disconnect(client):
         if len(server.get_clients()) == 0:
             serial_port.close()
 
     def on_serial_connect():
-        server.send_to_all('\x02Device: {} is connected\x03\r\n'.format(serial_port.serial.port).encode())
+        if debug:
+            server.send_to_all('\x02Device: {} is connected\x03\r\n'.format(serial_port.serial.port).encode())
 
     def on_serial_disconnect():
-        server.send_to_all('\x02Device: {} is disconnected\x03\r\n'.format(serial_port.serial.port).encode())
+        if debug:
+            server.send_to_all('\x02Device: {} is disconnected\x03\r\n'.format(serial_port.serial.port).encode())
 
     serial_port = SerialPort(device,
                              on_received=on_serial_receive,

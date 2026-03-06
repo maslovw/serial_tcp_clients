@@ -77,12 +77,6 @@ class SerialClient():
 
     def run(self):
         self.logger.info('connected')
-        try:
-            self.socket.sendall('Connection established: {}\r\n'.format(self.address).encode())
-        except Exception as e:
-            self.logger.error('send connection data failed: {}'.format(e))
-            self.err_cnt += 1
-
         self._on_connect(self)
 
         while not self._stop:
@@ -91,8 +85,8 @@ class SerialClient():
                 if len(data):
                     self.on_received(data)
                 else:
-                    self.logger.error("receive null")
-                    self.err_cnt += 1
+                    self.logger.debug("client disconnected")
+                    self.stop()
             except socket.timeout:
                 continue
             except Exception as e:
