@@ -4,16 +4,61 @@ from serialtcp.serial_port import SerialPort
 import time
 import signal
 import sys
+from datetime import datetime
 
 import logging
 
 logger = logging.getLogger('Main')
+
+# Character mappings: name -> (direction, from_bytes, to_bytes)
+# I = input from device (serial RX), O = output to device (serial TX)
+CHAR_MAPS = {
+    'INLCRNL': ('input',  b'\n',   b'\r\n'),
+    'ICRNL':   ('input',  b'\r',   b'\n'),
+    'IGNCR':   ('input',  b'\r',   b''),
+    'IGNLF':   ('input',  b'\n',   b''),
+    'OCRNULNL':('output', b'\r\x00', b'\n'),
+    'OCRNLNL': ('output', b'\r\n', b'\n'),
+    'ONLCRNL': ('output', b'\n',   b'\r\n'),
+    'ONLCR':   ('output', b'\n',   b'\r'),
+    'OCRNL':   ('output', b'\r',   b'\n'),
+    'ODELBS':  ('output', b'\x7f', b'\x08'),
+    'OBSDEL':  ('output', b'\x08', b'\x7f'),
+}
+
+
+def _apply_maps(data, maps):
+    for src, dst in maps:
+        data = data.replace(src, dst)
+    return data
+
+
+def _format_log_entry(direction, data):
+    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+    hex_part = ' '.join('{:02x}'.format(b) for b in data)
+    ascii_part = ''.join(chr(b) if 32 <= b < 127 else '.' for b in data)
+    return '[{}] {} {}: {} | {}\n'.format(ts, direction, len(data), hex_part, ascii_part)
 
 
 def start_service(**kwargs):
     tcp_port = kwargs['tcp_port']
     device = kwargs.get('device', None)
     debug = kwargs.get('verbose', 'error') == 'debug'
+
+    log_file = None
+    if kwargs.get('log'):
+        log_file = open(kwargs['log'], 'a')
+
+    input_maps = []
+    output_maps = []
+    if kwargs.get('map'):
+        for name in kwargs['map'].split(','):
+            name = name.strip().upper()
+            if name not in CHAR_MAPS:
+                print("Unknown map: {}, available: {}".format(name, ', '.join(CHAR_MAPS)))
+                sys.exit(1)
+            direction, src, dst = CHAR_MAPS[name]
+            (input_maps if direction == 'input' else output_maps).append((src, dst))
 
     stop = []
 
@@ -44,9 +89,19 @@ def start_service(**kwargs):
                 data = strip_telnet_commands(data)
                 if not data:
                     return
+            if output_maps:
+                data = _apply_maps(data, output_maps)
+            if log_file:
+                log_file.write(_format_log_entry('TX', data))
+                log_file.flush()
             serial_port.send(data)
 
     def on_serial_receive(data):
+        if log_file:
+            log_file.write(_format_log_entry('RX', data))
+            log_file.flush()
+        if input_maps:
+            data = _apply_maps(data, input_maps)
         server.send_to_all(data)
 
     # Telnet negotiation: switch client to character-at-a-time mode
@@ -111,6 +166,8 @@ def start_service(**kwargs):
     server.send_to_all('\x02Session is closed\x03\r\n\x04'.encode())
     server.stop()
     serial_port.close()
+    if log_file:
+        log_file.close()
     logger.debug("service stopped")
 
 def parse_args():
@@ -123,6 +180,21 @@ def parse_args():
         action='store_true',
         help='print list of serial devices',
         default=False
+    )
+
+    aparse.add_argument(
+        '--log',
+        help='log serial port I/O to file',
+        default=None
+    )
+
+    aparse.add_argument(
+        '--map',
+        help='character mappings, comma-separated. '
+             'I=input from device, O=output to device. '
+             'Available: ' + ', '.join(CHAR_MAPS) + '. '
+             'Example: --map INLCRNL,ODELBS',
+        default=None
     )
 
     aparse.add_argument(
