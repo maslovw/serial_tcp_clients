@@ -1,12 +1,13 @@
 """Add/edit dialog for a serial -> TCP port mapping."""
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 
 from serialtcp.service import PortConfig
 
 _BAUDRATES = ['9600', '19200', '38400', '57600', '115200', '230400', '460800', '921600']
 _PARITIES = ['N', 'E', 'O', 'S', 'M']
+_LINE_ENDINGS = ['CRLF', 'LF', 'CR', 'none']
 
 
 def list_serial_devices():
@@ -55,6 +56,8 @@ class _PortDialog(tk.Toplevel):
         self._char_mode = tk.BooleanVar(value=config.char_mode if config else False)
         self._char_delay = tk.StringVar(value=str(config.char_delay) if config else '0.0')
         self._wait_echo = tk.StringVar(value=str(config.wait_echo) if config else '0.0')
+        self._line_ending = tk.StringVar(value=config.line_ending if config else 'CRLF')
+        self._log_file = tk.StringVar(value=config.log_file if config else '')
         self._allow_remote = tk.BooleanVar(value=config.allow_remote if config else False)
         self._autostart = tk.BooleanVar(value=config.autostart if config else False)
 
@@ -90,8 +93,18 @@ class _PortDialog(tk.Toplevel):
         self._label(row, 'Wait echo (s)')
         tk.Entry(row, textvariable=self._wait_echo, width=26).pack(side='left')
 
+        row = self._row(body, 7)
+        self._label(row, 'Send line ending')
+        ttk.Combobox(row, textvariable=self._line_ending, width=24, state='readonly',
+                     values=_LINE_ENDINGS).pack(side='left')
+
+        row = self._row(body, 8)
+        self._label(row, 'Log file (optional)')
+        tk.Entry(row, textvariable=self._log_file, width=19).pack(side='left')
+        ttk.Button(row, text='Browse…', width=8, command=self._browse_log).pack(side='left', padx=(4, 0))
+
         checks = tk.Frame(body, bg=c.white)
-        checks.grid(row=7, column=0, sticky='w', pady=(10, 0))
+        checks.grid(row=9, column=0, sticky='w', pady=(10, 0))
         tk.Checkbutton(checks, text='Software flow control (xon/xoff)',
                        variable=self._xonxoff, bg=c.white, anchor='w').pack(anchor='w')
         tk.Checkbutton(checks, text='Character-at-a-time mode',
@@ -102,7 +115,7 @@ class _PortDialog(tk.Toplevel):
                        variable=self._autostart, bg=c.white, anchor='w').pack(anchor='w')
 
         buttons = tk.Frame(body, bg=c.white)
-        buttons.grid(row=8, column=0, sticky='e', pady=(18, 0))
+        buttons.grid(row=10, column=0, sticky='e', pady=(18, 0))
         ttk.Button(buttons, text='Cancel', command=self._cancel).pack(side='right')
         ttk.Button(buttons, text='Save', command=self._save).pack(side='right', padx=(0, 8))
 
@@ -131,6 +144,13 @@ class _PortDialog(tk.Toplevel):
             self.geometry('+{}+{}'.format(px + (pw - w) // 2, py + (ph - h) // 2))
         except Exception:
             pass
+
+    def _browse_log(self):
+        path = filedialog.asksaveasfilename(
+            parent=self, title='Serial log file', defaultextension='.log',
+            filetypes=[('Log files', '*.log'), ('Text files', '*.txt'), ('All files', '*.*')])
+        if path:
+            self._log_file.set(path)
 
     def _cancel(self):
         self.result = None
@@ -175,6 +195,8 @@ class _PortDialog(tk.Toplevel):
             char_mode=self._char_mode.get(),
             char_delay=char_delay,
             wait_echo=wait_echo,
+            line_ending=self._line_ending.get() or 'CRLF',
+            log_file=self._log_file.get().strip(),
             allow_remote=self._allow_remote.get(),
             autostart=self._autostart.get(),
         )

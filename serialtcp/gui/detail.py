@@ -6,17 +6,17 @@ service or its status changes; live values are updated in place each tick.
 """
 
 import tkinter as tk
+from tkinter import filedialog, messagebox
 
 from . import widgets
+from .ansi import parse_ansi, clean
 from .util import format_bytes, format_duration
 from serialtcp.service import (
     STATUS_RUNNING, STATUS_RECONNECTING, STATUS_STOPPED,
 )
 
-# event kind -> console text tag
-_KIND_TAGS = ('ts', 'conn', 'rx', 'tx', 'status', 'retry')
-
 _NEWLINES = {'CRLF': b'\r\n', 'LF': b'\n', 'CR': b'\r', 'none': b''}
+_LINE_ENDINGS = ['CRLF', 'LF', 'CR', 'none']
 
 _MAX_CONSOLE_LINES = 500
 
@@ -226,18 +226,23 @@ class DetailPanel(tk.Frame):
         live_color = c.con_retrying if reconnecting else c.con_live
         tk.Label(head, text=live_text, bg=c.con_bg, fg=live_color,
                  font=self.theme.ui(10, 500)).pack(side='right')
+        self._log_label = tk.Label(head, bg=c.con_bg, cursor='hand2',
+                                   font=self.theme.ui(10, 600))
+        self._log_label.pack(side='right', padx=(0, 14))
+        self._log_label.bind('<Button-1>', lambda _e: self._toggle_log(service))
+        self._update_log_label(service)
 
         text = tk.Text(frame, bg=c.con_bg, fg=c.con_rx, height=11, bd=0,
-                       highlightthickness=0, wrap='none', font=self.theme.mono(11.5),
+                       highlightthickness=0, wrap='char', font=self.theme.mono(11.5),
                        padx=15, pady=0, state='disabled', cursor='arrow',
                        spacing1=2, spacing3=2)
         text.pack(fill='both', expand=True)
         text.tag_configure('ts', foreground=c.con_ts)
-        text.tag_configure('conn', foreground=c.con_conn)
-        text.tag_configure('rx', foreground=c.con_rx)
-        text.tag_configure('tx', foreground=c.con_tx)
-        text.tag_configure('status', foreground=c.con_status)
-        text.tag_configure('retry', foreground=c.con_retry)
+        self._kind_color = {
+            'conn': c.con_conn, 'rx': c.con_rx, 'tx': c.con_tx,
+            'status': c.con_status, 'retry': c.con_retry,
+        }
+        self._color_tags = set()
 
         # Scroll the console itself on wheel and stop the event from bubbling
         # up to the sidebar list.
@@ -262,13 +267,18 @@ class DetailPanel(tk.Frame):
                          highlightcolor=c.accent)
         entry.pack(side='left', fill='x', expand=True, ipady=5, ipadx=8)
 
-        nl_var = tk.StringVar(value='CRLF')
-        opt = tk.OptionMenu(bar, nl_var, 'CRLF', 'LF', 'CR', 'none')
+        nl_var = tk.StringVar(value=service.config.line_ending or 'CRLF')
+        opt = tk.OptionMenu(bar, nl_var, *_LINE_ENDINGS)
         opt.configure(bg='#1b212c', fg=c.con_ts, activebackground='#2a323f',
                       activeforeground=c.con_rx, relief='flat', highlightthickness=0,
                       bd=0, font=self.theme.ui(10), width=4)
         opt['menu'].configure(bg='#1b212c', fg=c.con_rx)
         opt.pack(side='left', padx=(8, 0))
+
+        def on_nl_change(*_):
+            service.config.line_ending = nl_var.get()
+            self.actions.get('save', lambda: None)()
+        nl_var.trace_add('write', on_nl_change)
 
         def do_send(_e=None):
             payload = entry.get()
@@ -281,6 +291,30 @@ class DetailPanel(tk.Frame):
         entry.bind('<Return>', do_send)
         widgets.FlatButton(bar, self.theme, 'Send', do_send, bg=c.accent, fg=c.white,
                            hover='#245fbd', size=11.5, padx=14, pady=5).pack(side='left', padx=(8, 0))
+
+    def _update_log_label(self, service):
+        c = self.theme.colors
+        if service.logging_to_file:
+            self._log_label.configure(text='⦿ logging', fg=c.con_live)
+        else:
+            self._log_label.configure(text='○ log', fg=c.con_head)
+
+    def _toggle_log(self, service):
+        if service.logging_to_file:
+            service.stop_logging()
+        else:
+            path = filedialog.asksaveasfilename(
+                parent=self, title='Serial log file', defaultextension='.log',
+                initialfile='{}.log'.format(service.config.label),
+                filetypes=[('Log files', '*.log'), ('All files', '*.*')])
+            if not path:
+                return
+            if not service.start_logging(path):
+                messagebox.showerror('Log', 'Could not open log file:\n{}'.format(path),
+                                     parent=self)
+                return
+        self.actions.get('save', lambda: None)()
+        self._update_log_label(service)
 
     def _render_buffer(self, service):
         text = self._console
@@ -302,10 +336,21 @@ class DetailPanel(tk.Frame):
         text.configure(state='disabled')
         text.see('end')
 
+    def _color_tag(self, text, color):
+        tag = 'fg' + color
+        if tag not in self._color_tags:
+            text.tag_configure(tag, foreground=color)
+            self._color_tags.add(tag)
+        return tag
+
     def _insert_event(self, text, event):
         text.insert('end', '[{}] '.format(event.ts), 'ts')
-        tag = event.kind if event.kind in _KIND_TAGS else 'rx'
-        text.insert('end', event.text + '\n', tag)
+        default = self._kind_color.get(event.kind, self.theme.colors.con_rx)
+        for chunk, color in parse_ansi(event.text, default):
+            chunk = clean(chunk)
+            if chunk:
+                text.insert('end', chunk, self._color_tag(text, color))
+        text.insert('end', '\n')
 
     # -------------------------------------------------------------- dynamic
     def _update_dynamic(self, service, status):

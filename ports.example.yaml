@@ -16,6 +16,8 @@ ports:
     char_mode: false         # send characters one at a time
     char_delay: 0.0          # seconds between characters (char/char_mode)
     wait_echo: 0.0           # seconds to wait for echo per character
+    line_ending: CRLF        # console send newline: CRLF | LF | CR | none
+    log_file: ''             # path to log all serial activity ('' = off)
     allow_remote: false      # false = bind 127.0.0.1 (local only); true = 0.0.0.0
     autostart: true          # start listening as soon as the GUI launches
 

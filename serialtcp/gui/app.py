@@ -107,6 +107,7 @@ class App:
             'stop': self._stop_one,
             'edit': self._edit_port,
             'remove': self._remove_port,
+            'save': self._save,
         })
         self.detail.pack(side='left', fill='both', expand=True, padx=20, pady=18)
 

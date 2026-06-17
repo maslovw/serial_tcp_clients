@@ -14,6 +14,7 @@ onto the Tk main loop (queue + ``after``).
 import time
 import logging
 import threading
+from datetime import datetime
 from collections import namedtuple, deque
 from dataclasses import dataclass, asdict
 
@@ -56,6 +57,8 @@ class PortConfig:
     char_mode: bool = False
     char_delay: float = 0.0
     wait_echo: float = 0.0
+    line_ending: str = 'CRLF'    # console send newline: CRLF | LF | CR | none
+    log_file: str = ''           # path to log all serial activity (empty = off)
     allow_remote: bool = False   # False -> bind 127.0.0.1, True -> bind 0.0.0.0
     autostart: bool = False
 
@@ -106,6 +109,7 @@ class PortService:
 
         self.log_buffer = deque(maxlen=_LOG_HISTORY)
         self._log_lock = threading.Lock()
+        self._log_fh = None      # open file handle when logging to disk
 
     # ------------------------------------------------------------------ state
     @property
@@ -175,6 +179,8 @@ class PortService:
             raise
         self._running = True
         self.started_at = time.time()
+        if cfg.log_file:
+            self._open_log(cfg.log_file)
         self._emit('status', 'listening on {}:{}'.format(cfg.bind_host, cfg.tcp_port))
 
     def stop(self):
@@ -191,6 +197,7 @@ class PortService:
         self.started_at = None
         self.reconnect_attempt = 0
         self._emit('status', 'stopped')
+        self._close_log()
 
     def send_to_serial(self, data: bytes):
         """Transmit bytes to the serial device (used by the console input)."""
@@ -250,12 +257,18 @@ class PortService:
 
     # --------------------------------------------------------------- helpers
     def _buffer_lines(self, kind, data):
-        """Accumulate bytes and emit one LogEvent per complete text line."""
+        """Accumulate bytes and emit one LogEvent per complete text line.
+
+        Treats CRLF, lone CR and LF all as line breaks so consoles that
+        terminate lines with ``\\r`` (e.g. some DLT/serial logs) are split
+        into rows instead of one endless line.
+        """
         buf = self._line_bufs.get(kind, b'') + bytes(data)
+        buf = buf.replace(b'\r\n', b'\n').replace(b'\r', b'\n')
         parts = buf.split(b'\n')
         rest = parts.pop()
         for line in parts:
-            text = line.decode('utf-8', 'replace').rstrip('\r')
+            text = line.decode('utf-8', 'replace')
             if text:
                 self._emit(kind, text)
         if len(rest) > _MAX_PARTIAL_LINE:
@@ -270,10 +283,68 @@ class PortService:
         with self._log_lock:
             return list(self.log_buffer)
 
+    # ------------------------------------------------------------- logging
+    @property
+    def logging_to_file(self):
+        return self._log_fh is not None
+
+    def start_logging(self, path):
+        """Start (or switch) logging all serial activity to ``path``."""
+        with self._log_lock:
+            self._close_log_locked()
+            ok = self._open_log_locked(path)
+        if ok:
+            self.config.log_file = path
+            self._emit('status', 'logging to {}'.format(path))
+        return ok
+
+    def stop_logging(self):
+        if self._log_fh is not None:
+            self._emit('status', 'logging stopped')
+        with self._log_lock:
+            self._close_log_locked()
+        self.config.log_file = ''
+
+    def _open_log(self, path):
+        with self._log_lock:
+            return self._open_log_locked(path)
+
+    def _open_log_locked(self, path):
+        try:
+            self._log_fh = open(path, 'a', encoding='utf-8')
+            return True
+        except OSError as exc:
+            self._log_fh = None
+            self.logger.error('cannot open log file %s: %s', path, exc)
+            return False
+
+    def _close_log(self):
+        with self._log_lock:
+            self._close_log_locked()
+
+    def _close_log_locked(self):
+        if self._log_fh is not None:
+            try:
+                self._log_fh.close()
+            except Exception:
+                pass
+            self._log_fh = None
+
+    @staticmethod
+    def _log_timestamp():
+        now = datetime.now()
+        return now.strftime('[%d.%m.%y %H:%M:%S:') + '{:03d}]'.format(now.microsecond // 1000)
+
     def _emit(self, kind, text):
         ev = LogEvent(kind, text, time.strftime('%H:%M:%S'))
         with self._log_lock:
             self.log_buffer.append(ev)
+            if self._log_fh is not None:
+                try:
+                    self._log_fh.write('{} {}\n'.format(self._log_timestamp(), text))
+                    self._log_fh.flush()
+                except Exception:
+                    pass
         try:
             self._on_event(self, ev)
         except Exception:

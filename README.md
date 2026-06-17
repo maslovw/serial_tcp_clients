@@ -201,6 +201,8 @@ ports:
     char_mode: false      # send characters one at a time
     char_delay: 0.0       # seconds between characters
     wait_echo: 0.0        # seconds to wait for echo per character
+    line_ending: CRLF     # console send newline: CRLF | LF | CR | none
+    log_file: ''          # path to log all serial activity ('' = off)
     allow_remote: false   # false = listen on 127.0.0.1 only; true = 0.0.0.0
     autostart: true       # start listening as soon as the GUI opens
 ```
@@ -227,3 +229,9 @@ A ready-to-edit example lives in [`ports.example.yaml`](ports.example.yaml).
 
   or PuTTY (connection type *Raw* or *Telnet*, host `localhost`, port `5000`),
   or `nc localhost 5000`. Several clients can share one serial device at once.
+- **Console** — the live log renders ANSI colours and splits CR/CRLF/LF lines.
+  The input row sends what you type; the dropdown next to it picks the appended
+  line ending (`CRLF`/`LF`/`CR`/`none`), which is saved to the config.
+- **Logging** — click **log** in the console header (or set `log_file` in the
+  config / dialog) to record all serial activity to a file. Each line is stamped
+  `[dd.mm.YY HH:MM:SS:MSEC]`.
