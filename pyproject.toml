@@ -17,6 +17,9 @@ dependencies = [
     "pyserial>=3.3",
 ]
 
+[tool.setuptools.packages.find]
+include = ["serialtcp*"]
+
 [project.scripts]
 serial-tcp-server = "serialtcp.tcp_server:parse_args"
 
