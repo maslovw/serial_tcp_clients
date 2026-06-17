@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;}
+</style>
+</helmet>
+
+<div style="width:max-content;min-width:100%;min-height:100vh;box-sizing:border-box;padding:48px;background:#e7e5df;font-family:system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+
+  <div style="margin:0 0 36px 0;">
+    <div style="font:600 22px/1.2 system-ui;color:#26241f;letter-spacing:-0.01em;">Serial → TCP Server — GUI explorations</div>
+    <div style="font:400 14px/1.5 system-ui;color:#6b675f;margin-top:6px;max-width:760px;">Master–detail layout: a list of serial→TCP port mappings on the left, the selected port's console, settings, clients and throughput on the right. Three style directions to compare.</div>
+  </div>
+
+  <div style="display:flex;gap:48px;align-items:flex-start;">
+
+    <!-- ===================== VARIATION 1 — CLASSIC NATIVE TTK ===================== -->
+    <div style="flex:none;width:1040px;">
+      <div style="font:600 13px/1 system-ui;color:#3a3833;margin-bottom:10px;letter-spacing:0.01em;">Variation 1 · Classic — native ttk</div>
+      <div style="background:#f0f0f0;border-radius:7px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,0.14);border:1px solid #c9c9c9;">
+
+        <!-- title bar -->
+        <div style="height:34px;background:linear-gradient(#fbfbfb,#ececec);border-bottom:1px solid #cfcfcf;display:flex;align-items:center;padding:0 12px;">
+          <div style="font:600 12.5px/1 system-ui;color:#3a3a3a;">Serial → TCP Server</div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:16px;color:#6a6a6a;">
+            <span style="font:400 13px/1 system-ui;">—</span>
+            <span style="display:inline-block;width:10px;height:9px;border:1.5px solid #6a6a6a;border-radius:1px;"></span>
+            <span style="font:400 14px/1 system-ui;">✕</span>
+          </div>
+        </div>
+
+        <!-- menu bar -->
+        <div style="height:27px;background:#f4f4f4;border-bottom:1px solid #dcdcdc;display:flex;align-items:center;gap:2px;padding:0 6px;">
+          <span style="font:400 12.5px/1 system-ui;color:#333;padding:5px 9px;border-radius:3px;">File</span>
+          <span style="font:400 12.5px/1 system-ui;color:#333;padding:5px 9px;border-radius:3px;">Edit</span>
+          <span style="font:400 12.5px/1 system-ui;color:#333;padding:5px 9px;border-radius:3px;">View</span>
+          <span style="font:400 12.5px/1 system-ui;color:#fff;padding:5px 9px;border-radius:3px;background:#2a6fdb;">Tools</span>
+          <span style="font:400 12.5px/1 system-ui;color:#333;padding:5px 9px;border-radius:3px;">Help</span>
+        </div>
+
+        <!-- toolbar -->
+        <div style="height:46px;background:#f7f7f7;border-bottom:1px solid #dcdcdc;display:flex;align-items:center;gap:6px;padding:0 10px;">
+          <div style="display:flex;align-items:center;gap:6px;padding:6px 11px;background:#fff;border:1px solid #c4c4c4;border-radius:4px;font:500 12px/1 system-ui;color:#2a2a2a;"><span style="font-weight:700;color:#1f8a5b;">＋</span> Add Port</div>
+          <div style="display:flex;align-items:center;gap:6px;padding:6px 11px;background:#fff;border:1px solid #c4c4c4;border-radius:4px;font:500 12px/1 system-ui;color:#2a2a2a;"><span style="font-weight:700;color:#b23b3b;">－</span> Remove</div>
+          <div style="width:1px;height:24px;background:#d4d4d4;margin:0 4px;"></div>
+          <div style="display:flex;align-items:center;gap:7px;padding:6px 12px;background:#1f8a5b;border:1px solid #1a7a50;border-radius:4px;font:600 12px/1 system-ui;color:#fff;"><span style="display:inline-block;width:0;height:0;border-left:7px solid #fff;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent;"></span> Start All</div>
+          <div style="display:flex;align-items:center;gap:7px;padding:6px 12px;background:#fff;border:1px solid #c4c4c4;border-radius:4px;font:600 12px/1 system-ui;color:#2a2a2a;"><span style="display:inline-block;width:9px;height:9px;background:#b23b3b;border-radius:1px;"></span> Stop All</div>
+          <div style="width:1px;height:24px;background:#d4d4d4;margin:0 4px;"></div>
+          <div style="padding:6px 11px;background:#fff;border:1px solid #c4c4c4;border-radius:4px;font:500 12px/1 system-ui;color:#2a2a2a;">Save Config</div>
+          <div style="padding:6px 11px;background:#fff;border:1px solid #c4c4c4;border-radius:4px;font:500 12px/1 system-ui;color:#2a2a2a;">Load Config</div>
+        </div>
+
+        <!-- body -->
+        <div style="display:flex;height:556px;background:#fff;">
+          <!-- left treeview -->
+          <div style="width:430px;border-right:1px solid #d8d8d8;display:flex;flex-direction:column;background:#fdfdfd;">
+            <div style="display:flex;height:28px;background:#eee;border-bottom:1px solid #d2d2d2;font:600 11.5px/28px system-ui;color:#555;">
+              <div style="flex:1.3;padding:0 10px;border-right:1px solid #ddd;">Device</div>
+              <div style="width:70px;padding:0 8px;border-right:1px solid #ddd;">TCP</div>
+              <div style="width:104px;padding:0 8px;border-right:1px solid #ddd;">Status</div>
+              <div style="width:60px;padding:0 8px;text-align:right;">Clients</div>
+            </div>
+            <!-- row selected -->
+            <div style="display:flex;height:42px;align-items:center;background:#2a6fdb;color:#fff;">
+              <div style="flex:1.3;padding:0 10px;font:600 12.5px/1.3 system-ui;">COM3<div style="font:400 10.5px/1.3 system-ui;opacity:0.85;">USB Serial Device</div></div>
+              <div style="width:70px;padding:0 8px;font:500 12px/1 system-ui;">5000</div>
+              <div style="width:104px;padding:0 8px;display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#7CFC9B;box-shadow:0 0 0 2px rgba(255,255,255,0.25);"></span><span style="font:500 11.5px/1 system-ui;">Running</span></div>
+              <div style="width:60px;padding:0 8px;text-align:right;font:600 12px/1 system-ui;">3</div>
+            </div>
+            <!-- row -->
+            <div style="display:flex;height:42px;align-items:center;border-bottom:1px solid #f0f0f0;">
+              <div style="flex:1.3;padding:0 10px;font:600 12.5px/1.3 system-ui;color:#222;">COM4<div style="font:400 10.5px/1.3 system-ui;color:#999;">FTDI FT232R</div></div>
+              <div style="width:70px;padding:0 8px;font:500 12px/1 system-ui;color:#444;">5001</div>
+              <div style="width:104px;padding:0 8px;display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#e0a020;"></span><span style="font:500 11.5px/1 system-ui;color:#9a6b00;">Reconnect…</span></div>
+              <div style="width:60px;padding:0 8px;text-align:right;font:600 12px/1 system-ui;color:#444;">1</div>
+            </div>
+            <!-- row -->
+            <div style="display:flex;height:42px;align-items:center;border-bottom:1px solid #f0f0f0;background:#fafafa;">
+              <div style="flex:1.3;padding:0 10px;font:600 12.5px/1.3 system-ui;color:#222;">/dev/ttyUSB0<div style="font:400 10.5px/1.3 system-ui;color:#999;">CP2102</div></div>
+              <div style="width:70px;padding:0 8px;font:500 12px/1 system-ui;color:#444;">5002</div>
+              <div style="width:104px;padding:0 8px;display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#bbb;"></span><span style="font:500 11.5px/1 system-ui;color:#888;">Stopped</span></div>
+              <div style="width:60px;padding:0 8px;text-align:right;font:600 12px/1 system-ui;color:#999;">0</div>
+            </div>
+            <!-- row -->
+            <div style="display:flex;height:42px;align-items:center;border-bottom:1px solid #f0f0f0;">
+              <div style="flex:1.3;padding:0 10px;font:600 12.5px/1.3 system-ui;color:#222;">COM7<div style="font:400 10.5px/1.3 system-ui;color:#999;">USB Serial Device</div></div>
+              <div style="width:70px;padding:0 8px;font:500 12px/1 system-ui;color:#444;">5005</div>
+              <div style="width:104px;padding:0 8px;display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#3aa563;"></span><span style="font:500 11.5px/1 system-ui;color:#1f7a48;">Running</span></div>
+              <div style="width:60px;padding:0 8px;text-align:right;font:600 12px/1 system-ui;color:#444;">2</div>
+            </div>
+            <div style="margin-top:auto;border-top:1px solid #e2e2e2;background:#f4f4f4;padding:8px 10px;font:400 11px/1.4 system-ui;color:#888;">Double-click a row to edit its serial parameters.</div>
+          </div>
+
+          <!-- right notebook -->
+          <div style="flex:1;display:flex;flex-direction:column;">
+            <!-- tabs -->
+            <div style="display:flex;height:32px;background:#eee;border-bottom:1px solid #cfcfcf;padding:4px 6px 0 6px;gap:2px;">
+              <div style="padding:0 16px;background:#fff;border:1px solid #cfcfcf;border-bottom:1px solid #fff;border-radius:4px 4px 0 0;font:600 12px/27px system-ui;color:#2a6fdb;position:relative;top:1px;">Console</div>
+              <div style="padding:0 16px;font:500 12px/28px system-ui;color:#666;">Settings</div>
+              <div style="padding:0 16px;font:500 12px/28px system-ui;color:#666;">Clients (3)</div>
+            </div>
+            <!-- console -->
+            <div style="flex:1;background:#1c1f24;padding:12px 14px;overflow:hidden;font-family:'JetBrains Mono',Consolas,Menlo,monospace;font-size:11.5px;line-height:1.85;">
+              <div style="color:#7f8896;">[12:04:01] <span style="color:#cfd6e0;">Server listening on 0.0.0.0:5000</span></div>
+              <div style="color:#7f8896;">[12:04:07] <span style="color:#9bdca0;">Serial COM3 opened @ 115200 8N1</span></div>
+              <div style="color:#7f8896;">[12:04:07] <span style="color:#7fb4ff;">Client connected 192.168.1.24:51884 (1 total)</span></div>
+              <div style="color:#7f8896;">[12:04:09] <span style="color:#7fb4ff;">Client connected 192.168.1.31:49210 (2 total)</span></div>
+              <div style="color:#7f8896;">[12:05:11] <span style="color:#7fb4ff;">Client connected 10.0.0.8:60122 (3 total)</span></div>
+              <div style="color:#7f8896;">[12:05:42] <span style="color:#cfd6e0;">RX → boot: U-Boot 2021.07 (build 0421)</span></div>
+              <div style="color:#7f8896;">[12:05:42] <span style="color:#cfd6e0;">RX → DRAM:  512 MiB</span></div>
+              <div style="color:#7f8896;">[12:05:43] <span style="color:#cfd6e0;">RX → Net:   eth0: ethernet@1c30000</span></div>
+              <div style="color:#7f8896;">[12:06:02] <span style="color:#e6c07b;">TX ← login: root</span></div>
+              <div style="color:#7f8896;">[12:06:18] <span style="color:#cfd6e0;">RX → Welcome to BusyBox v1.34.1</span></div>
+              <div style="color:#7f8896;">[12:07:05] <span style="color:#cfd6e0;">throughput: TX 142 B  RX 1.2 kB</span><span style="display:inline-block;width:7px;height:14px;background:#9bdca0;vertical-align:-3px;margin-left:4px;"></span></div>
+            </div>
+            <!-- console input bar -->
+            <div style="height:38px;border-top:1px solid #d8d8d8;background:#f7f7f7;display:flex;align-items:center;padding:0 10px;gap:8px;">
+              <span style="font:600 11px/1 system-ui;color:#888;">SEND</span>
+              <div style="flex:1;height:24px;background:#fff;border:1px solid #c4c4c4;border-radius:4px;display:flex;align-items:center;padding:0 8px;font:400 11.5px/1 'JetBrains Mono',monospace;color:#aaa;">type a line and press Enter…</div>
+              <label style="display:flex;align-items:center;gap:5px;font:400 11px/1 system-ui;color:#555;"><span style="width:13px;height:13px;border:1px solid #aaa;border-radius:3px;display:inline-block;"></span>CR/LF</label>
+              <label style="display:flex;align-items:center;gap:5px;font:400 11px/1 system-ui;color:#555;"><span style="width:13px;height:13px;border:1px solid #2a6fdb;background:#2a6fdb;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:9px;">✓</span>Echo</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- status bar -->
+        <div style="height:26px;background:#ececec;border-top:1px solid #d2d2d2;display:flex;align-items:center;padding:0 12px;font:400 11px/1 system-ui;color:#666;">
+          <span>4 ports</span><span style="margin:0 8px;color:#ccc;">|</span><span style="color:#1f7a48;">2 running</span><span style="margin:0 8px;color:#ccc;">|</span><span>6 clients connected</span>
+          <span style="margin-left:auto;color:#999;">v1.2.0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== VARIATION 2 — MODERN FLAT (BLUE) ===================== -->
+    <div style="flex:none;width:1040px;">
+      <div style="font:600 13px/1 system-ui;color:#3a3833;margin-bottom:10px;letter-spacing:0.01em;">Variation 2 · Modern — flat, blue accent</div>
+      <div style="background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 16px 40px rgba(20,30,60,0.18);border:1px solid #e3e6ec;">
+
+        <!-- title bar -->
+        <div style="height:38px;background:#fff;border-bottom:1px solid #eef0f4;display:flex;align-items:center;padding:0 14px;">
+          <div style="width:9px;height:9px;border-radius:50%;background:#febc2e;margin-right:7px;"></div>
+          <div style="width:9px;height:9px;border-radius:50%;background:#dfe2e8;margin-right:7px;"></div>
+          <div style="width:9px;height:9px;border-radius:50%;background:#dfe2e8;"></div>
+          <div style="margin-left:14px;font:600 12.5px/1 system-ui;color:#3b4252;">Serial TCP Server</div>
+        </div>
+
+        <!-- app bar -->
+        <div style="height:60px;background:#fff;border-bottom:1px solid #eef0f4;display:flex;align-items:center;padding:0 18px;gap:14px;">
+          <div style="width:30px;height:30px;border-radius:7px;background:#2a6fdb;display:flex;align-items:center;justify-content:center;color:#fff;font:700 14px/1 system-ui;">⇄</div>
+          <div>
+            <div style="font:700 15px/1.1 system-ui;color:#1d2433;letter-spacing:-0.01em;">Port Manager</div>
+            <div style="font:400 11px/1.2 system-ui;color:#8a93a4;margin-top:2px;">4 mappings · 6 clients</div>
+          </div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:9px;">
+            <div style="display:flex;align-items:center;gap:8px;padding:9px 16px;background:#1f8a5b;border-radius:8px;font:600 12.5px/1 system-ui;color:#fff;box-shadow:0 2px 6px rgba(31,138,91,0.3);"><span style="display:inline-block;width:0;height:0;border-left:7px solid #fff;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent;"></span>Start all</div>
+            <div style="display:flex;align-items:center;gap:8px;padding:9px 16px;background:#f3f5f8;border:1px solid #e3e6ec;border-radius:8px;font:600 12.5px/1 system-ui;color:#4a5263;"><span style="display:inline-block;width:9px;height:9px;background:#9aa3b2;border-radius:2px;"></span>Stop all</div>
+            <div style="width:1px;height:26px;background:#e6e9ef;margin:0 2px;"></div>
+            <div style="width:38px;height:38px;border:1px solid #e3e6ec;border-radius:8px;display:flex;align-items:center;justify-content:center;font:600 14px/1 system-ui;color:#6b7385;">＋</div>
+            <div style="width:38px;height:38px;border:1px solid #e3e6ec;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#6b7385;font-size:15px;">⚙</div>
+          </div>
+        </div>
+
+        <!-- body -->
+        <div style="display:flex;height:566px;background:#f6f8fb;">
+          <!-- sidebar cards -->
+          <div style="width:344px;padding:14px;display:flex;flex-direction:column;gap:10px;border-right:1px solid #eaedf2;overflow:hidden;">
+            <!-- card selected -->
+            <div style="background:#fff;border-radius:10px;border:1px solid #2a6fdb;box-shadow:0 4px 14px rgba(42,111,219,0.14);padding:13px 14px;position:relative;">
+              <div style="position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:#2a6fdb;"></div>
+              <div style="display:flex;align-items:center;">
+                <div style="font:700 14px/1.1 system-ui;color:#1d2433;">COM3</div>
+                <div style="margin-left:8px;font:500 11.5px/1 'JetBrains Mono',monospace;color:#8a93a4;">→ :5000</div>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:5px;padding:3px 9px;background:#e7f6ee;border-radius:20px;"><span style="width:6px;height:6px;border-radius:50%;background:#1f8a5b;"></span><span style="font:600 10.5px/1 system-ui;color:#1f7a48;">Running</span></div>
+              </div>
+              <div style="display:flex;gap:14px;margin-top:11px;">
+                <div><div style="font:400 9.5px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">▲ OUT</div><div style="font:600 12px/1 'JetBrains Mono',monospace;color:#3b4252;margin-top:4px;">4.2 KB/s</div></div>
+                <div><div style="font:400 9.5px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">▼ IN</div><div style="font:600 12px/1 'JetBrains Mono',monospace;color:#3b4252;margin-top:4px;">18 KB/s</div></div>
+                <div style="margin-left:auto;text-align:right;"><div style="font:400 9.5px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">CLIENTS</div><div style="font:700 12px/1 system-ui;color:#2a6fdb;margin-top:4px;">3</div></div>
+              </div>
+            </div>
+            <!-- card -->
+            <div style="background:#fff;border-radius:10px;border:1px solid #eaedf2;padding:13px 14px;">
+              <div style="display:flex;align-items:center;">
+                <div style="font:700 14px/1.1 system-ui;color:#1d2433;">COM4</div>
+                <div style="margin-left:8px;font:500 11.5px/1 'JetBrains Mono',monospace;color:#8a93a4;">→ :5001</div>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:5px;padding:3px 9px;background:#fdf3e0;border-radius:20px;"><span style="width:6px;height:6px;border-radius:50%;background:#e0a020;"></span><span style="font:600 10.5px/1 system-ui;color:#9a6b00;">Reconnecting</span></div>
+              </div>
+              <div style="display:flex;gap:14px;margin-top:11px;">
+                <div><div style="font:400 9.5px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">▲ OUT</div><div style="font:600 12px/1 'JetBrains Mono',monospace;color:#bcc3cf;margin-top:4px;">—</div></div>
+                <div><div style="font:400 9.5px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">▼ IN</div><div style="font:600 12px/1 'JetBrains Mono',monospace;color:#bcc3cf;margin-top:4px;">—</div></div>
+                <div style="margin-left:auto;text-align:right;"><div style="font:400 9.5px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">CLIENTS</div><div style="font:700 12px/1 system-ui;color:#4a5263;margin-top:4px;">1</div></div>
+              </div>
+            </div>
+            <!-- card -->
+            <div style="background:#fff;border-radius:10px;border:1px solid #eaedf2;padding:13px 14px;opacity:0.92;">
+              <div style="display:flex;align-items:center;">
+                <div style="font:700 14px/1.1 system-ui;color:#1d2433;">ttyUSB0</div>
+                <div style="margin-left:8px;font:500 11.5px/1 'JetBrains Mono',monospace;color:#8a93a4;">→ :5002</div>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:5px;padding:3px 9px;background:#eef0f4;border-radius:20px;"><span style="width:6px;height:6px;border-radius:50%;background:#aab1bf;"></span><span style="font:600 10.5px/1 system-ui;color:#7a8294;">Stopped</span></div>
+              </div>
+              <div style="display:flex;gap:14px;margin-top:11px;">
+                <div><div style="font:400 9.5px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">▲ OUT</div><div style="font:600 12px/1 'JetBrains Mono',monospace;color:#bcc3cf;margin-top:4px;">—</div></div>
+                <div><div style="font:400 9.5px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">▼ IN</div><div style="font:600 12px/1 'JetBrains Mono',monospace;color:#bcc3cf;margin-top:4px;">—</div></div>
+                <div style="margin-left:auto;text-align:right;"><div style="font:400 9.5px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">CLIENTS</div><div style="font:700 12px/1 system-ui;color:#9aa3b2;margin-top:4px;">0</div></div>
+              </div>
+            </div>
+            <!-- card -->
+            <div style="background:#fff;border-radius:10px;border:1px solid #eaedf2;padding:13px 14px;">
+              <div style="display:flex;align-items:center;">
+                <div style="font:700 14px/1.1 system-ui;color:#1d2433;">COM7</div>
+                <div style="margin-left:8px;font:500 11.5px/1 'JetBrains Mono',monospace;color:#8a93a4;">→ :5005</div>
+                <div style="margin-left:auto;display:flex;align-items:center;gap:5px;padding:3px 9px;background:#e7f6ee;border-radius:20px;"><span style="width:6px;height:6px;border-radius:50%;background:#1f8a5b;"></span><span style="font:600 10.5px/1 system-ui;color:#1f7a48;">Running</span></div>
+              </div>
+              <div style="display:flex;gap:14px;margin-top:11px;">
+                <div><div style="font:400 9.5px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">▲ OUT</div><div style="font:600 12px/1 'JetBrains Mono',monospace;color:#3b4252;margin-top:4px;">0.8 KB/s</div></div>
+                <div><div style="font:400 9.5px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">▼ IN</div><div style="font:600 12px/1 'JetBrains Mono',monospace;color:#3b4252;margin-top:4px;">2.1 KB/s</div></div>
+                <div style="margin-left:auto;text-align:right;"><div style="font:400 9.5px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">CLIENTS</div><div style="font:700 12px/1 system-ui;color:#2a6fdb;margin-top:4px;">2</div></div>
+              </div>
+            </div>
+            <div style="margin-top:auto;border:1.5px dashed #d3d9e2;border-radius:10px;padding:12px;text-align:center;font:600 12px/1 system-ui;color:#8a93a4;">＋  Add serial → TCP port</div>
+          </div>
+
+          <!-- detail -->
+          <div style="flex:1;padding:18px 20px;overflow:hidden;">
+            <!-- detail header -->
+            <div style="display:flex;align-items:center;">
+              <div>
+                <div style="display:flex;align-items:center;gap:10px;"><span style="font:700 19px/1.1 system-ui;color:#1d2433;letter-spacing:-0.01em;">COM3</span><span style="font:500 13px/1 'JetBrains Mono',monospace;color:#8a93a4;">→ 0.0.0.0:5000</span></div>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:7px;"><span style="width:7px;height:7px;border-radius:50%;background:#1f8a5b;"></span><span style="font:600 11.5px/1 system-ui;color:#1f7a48;">Running · uptime 03:12:44</span></div>
+              </div>
+              <div style="margin-left:auto;display:flex;gap:8px;">
+                <div style="display:flex;align-items:center;gap:7px;padding:9px 16px;background:#fff;border:1px solid #e3e6ec;border-radius:8px;font:600 12.5px/1 system-ui;color:#b23b3b;"><span style="display:inline-block;width:9px;height:9px;background:#b23b3b;border-radius:2px;"></span>Stop</div>
+                <div style="padding:9px 14px;background:#fff;border:1px solid #e3e6ec;border-radius:8px;font:600 12.5px/1 system-ui;color:#4a5263;">Edit</div>
+              </div>
+            </div>
+
+            <!-- stat tiles -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px;">
+              <div style="background:#fff;border:1px solid #eaedf2;border-radius:9px;padding:12px;"><div style="font:400 10px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">TCP CLIENTS</div><div style="font:700 20px/1 system-ui;color:#1d2433;margin-top:8px;">3</div></div>
+              <div style="background:#fff;border:1px solid #eaedf2;border-radius:9px;padding:12px;"><div style="font:400 10px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">TX TOTAL</div><div style="font:700 20px/1 system-ui;color:#1d2433;margin-top:8px;">142 <span style="font:600 11px/1 system-ui;color:#9aa3b2;">KB</span></div></div>
+              <div style="background:#fff;border:1px solid #eaedf2;border-radius:9px;padding:12px;"><div style="font:400 10px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">RX TOTAL</div><div style="font:700 20px/1 system-ui;color:#1d2433;margin-top:8px;">1.2 <span style="font:600 11px/1 system-ui;color:#9aa3b2;">MB</span></div></div>
+              <div style="background:#fff;border:1px solid #eaedf2;border-radius:9px;padding:12px;"><div style="font:400 10px/1 system-ui;color:#9aa3b2;letter-spacing:0.04em;">BAUD</div><div style="font:700 20px/1 system-ui;color:#1d2433;margin-top:8px;">115200</div></div>
+            </div>
+
+            <!-- settings chips -->
+            <div style="display:flex;align-items:center;gap:8px;margin-top:16px;flex-wrap:wrap;">
+              <span style="font:600 11px/1 system-ui;color:#8a93a4;margin-right:2px;">SERIAL</span>
+              <span style="padding:5px 10px;background:#eef2fb;border-radius:6px;font:500 11.5px/1 'JetBrains Mono',monospace;color:#2a5bb0;">8N1</span>
+              <span style="padding:5px 10px;background:#eef2fb;border-radius:6px;font:500 11.5px/1 'JetBrains Mono',monospace;color:#2a5bb0;">parity N</span>
+              <span style="padding:5px 10px;background:#f3f5f8;border-radius:6px;font:500 11.5px/1 'JetBrains Mono',monospace;color:#6b7385;">xon/xoff off</span>
+              <span style="padding:5px 10px;background:#f3f5f8;border-radius:6px;font:500 11.5px/1 'JetBrains Mono',monospace;color:#6b7385;">char-mode off</span>
+              <span style="padding:5px 10px;background:#f3f5f8;border-radius:6px;font:500 11.5px/1 'JetBrains Mono',monospace;color:#6b7385;">echo-wait 0s</span>
+            </div>
+
+            <!-- console -->
+            <div style="margin-top:16px;background:#11151c;border-radius:9px;padding:13px 15px;height:188px;overflow:hidden;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.85;">
+              <div style="display:flex;align-items:center;margin-bottom:8px;"><span style="font:600 10px/1 system-ui;color:#6b7588;letter-spacing:0.06em;">CONSOLE — COM3</span><span style="margin-left:auto;font:500 10px/1 system-ui;color:#4d8f6b;">● live</span></div>
+              <div style="color:#6b7588;">[12:05:11] <span style="color:#7fb4ff;">client 10.0.0.8:60122 connected (3 total)</span></div>
+              <div style="color:#6b7588;">[12:05:42] <span style="color:#c7cedb;">U-Boot 2021.07 (build 0421)</span></div>
+              <div style="color:#6b7588;">[12:05:43] <span style="color:#c7cedb;">Net: eth0: ethernet@1c30000</span></div>
+              <div style="color:#6b7588;">[12:06:18] <span style="color:#c7cedb;">Welcome to BusyBox v1.34.1</span></div>
+              <div style="color:#6b7588;">[12:06:22] <span style="color:#e6c07b;">tx ← root</span></div>
+              <div style="color:#6b7588;">[12:07:05] <span style="color:#9bdca0;">throughput TX 142B RX 1.2kB</span><span style="display:inline-block;width:6px;height:13px;background:#9bdca0;vertical-align:-3px;margin-left:4px;"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== VARIATION 3 — DARK CONSOLE ===================== -->
+    <div style="flex:none;width:1040px;">
+      <div style="font:600 13px/1 system-ui;color:#3a3833;margin-bottom:10px;letter-spacing:0.01em;">Variation 3 · Dark — console / technical</div>
+      <div style="background:#0f1216;border-radius:9px;overflow:hidden;box-shadow:0 16px 44px rgba(0,0,0,0.4);border:1px solid #242a32;">
+
+        <!-- title bar -->
+        <div style="height:36px;background:#15191f;border-bottom:1px solid #242a32;display:flex;align-items:center;padding:0 13px;">
+          <div style="width:9px;height:9px;border-radius:50%;background:#3a4350;margin-right:7px;"></div>
+          <div style="width:9px;height:9px;border-radius:50%;background:#3a4350;margin-right:7px;"></div>
+          <div style="width:9px;height:9px;border-radius:50%;background:#3a4350;"></div>
+          <div style="margin-left:14px;font:600 12px/1 'JetBrains Mono',monospace;color:#8a93a4;">serial-tcp-server</div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:6px;"><span style="width:7px;height:7px;border-radius:50%;background:#37b67a;box-shadow:0 0 6px #37b67a;"></span><span style="font:500 11px/1 'JetBrains Mono',monospace;color:#5e6a7a;">daemon up 03:12</span></div>
+        </div>
+
+        <!-- toolbar -->
+        <div style="height:46px;background:#12161b;border-bottom:1px solid #242a32;display:flex;align-items:center;gap:8px;padding:0 13px;">
+          <div style="display:flex;align-items:center;gap:7px;padding:7px 13px;background:#1d6fe0;border-radius:6px;font:600 12px/1 'JetBrains Mono',monospace;color:#fff;"><span style="display:inline-block;width:0;height:0;border-left:7px solid #fff;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent;"></span>start all</div>
+          <div style="display:flex;align-items:center;gap:7px;padding:7px 13px;background:#1a1f26;border:1px solid #2a313b;border-radius:6px;font:600 12px/1 'JetBrains Mono',monospace;color:#9aa6b6;"><span style="display:inline-block;width:9px;height:9px;background:#7a8494;border-radius:1px;"></span>stop all</div>
+          <div style="width:1px;height:22px;background:#2a313b;margin:0 4px;"></div>
+          <div style="padding:7px 13px;background:#1a1f26;border:1px solid #2a313b;border-radius:6px;font:600 12px/1 'JetBrains Mono',monospace;color:#9aa6b6;">+ port</div>
+          <div style="padding:7px 13px;background:#1a1f26;border:1px solid #2a313b;border-radius:6px;font:600 12px/1 'JetBrains Mono',monospace;color:#9aa6b6;">save</div>
+          <div style="padding:7px 13px;background:#1a1f26;border:1px solid #2a313b;border-radius:6px;font:600 12px/1 'JetBrains Mono',monospace;color:#9aa6b6;">load</div>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:14px;font:500 11px/1 'JetBrains Mono',monospace;color:#5e6a7a;"><span>4 ports</span><span style="color:#37b67a;">2 up</span><span>6 clients</span></div>
+        </div>
+
+        <!-- body -->
+        <div style="display:flex;height:558px;">
+          <!-- left rail -->
+          <div style="width:262px;background:#12161b;border-right:1px solid #242a32;padding:10px 9px;display:flex;flex-direction:column;gap:5px;">
+            <div style="font:600 10px/1 'JetBrains Mono',monospace;color:#4d5870;letter-spacing:0.08em;padding:4px 8px 8px 8px;">PORTS</div>
+            <!-- selected -->
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 9px;background:#1a2230;border:1px solid #1d6fe0;border-radius:7px;">
+              <span style="width:8px;height:8px;border-radius:50%;background:#37b67a;box-shadow:0 0 6px #37b67a;flex:none;"></span>
+              <div style="flex:1;min-width:0;"><div style="font:700 12.5px/1.1 'JetBrains Mono',monospace;color:#e6ebf2;">COM3</div><div style="font:400 10px/1.3 'JetBrains Mono',monospace;color:#6b7588;margin-top:3px;">:5000 · 115200</div></div>
+              <span style="font:700 11px/1 'JetBrains Mono',monospace;color:#5ea0ff;">3</span>
+            </div>
+            <!-- item -->
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 9px;border:1px solid transparent;border-radius:7px;">
+              <span style="width:8px;height:8px;border-radius:50%;background:#e0a020;flex:none;"></span>
+              <div style="flex:1;min-width:0;"><div style="font:700 12.5px/1.1 'JetBrains Mono',monospace;color:#c2cad6;">COM4</div><div style="font:400 10px/1.3 'JetBrains Mono',monospace;color:#5e6a7a;margin-top:3px;">:5001 · reconnect…</div></div>
+              <span style="font:700 11px/1 'JetBrains Mono',monospace;color:#7a8494;">1</span>
+            </div>
+            <!-- item -->
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 9px;border:1px solid transparent;border-radius:7px;">
+              <span style="width:8px;height:8px;border-radius:50%;background:#48515f;flex:none;"></span>
+              <div style="flex:1;min-width:0;"><div style="font:700 12.5px/1.1 'JetBrains Mono',monospace;color:#8893a4;">ttyUSB0</div><div style="font:400 10px/1.3 'JetBrains Mono',monospace;color:#5e6a7a;margin-top:3px;">:5002 · stopped</div></div>
+              <span style="font:700 11px/1 'JetBrains Mono',monospace;color:#4d5870;">0</span>
+            </div>
+            <!-- item -->
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 9px;border:1px solid transparent;border-radius:7px;">
+              <span style="width:8px;height:8px;border-radius:50%;background:#37b67a;flex:none;"></span>
+              <div style="flex:1;min-width:0;"><div style="font:700 12.5px/1.1 'JetBrains Mono',monospace;color:#c2cad6;">COM7</div><div style="font:400 10px/1.3 'JetBrains Mono',monospace;color:#5e6a7a;margin-top:3px;">:5005 · 115200</div></div>
+              <span style="font:700 11px/1 'JetBrains Mono',monospace;color:#5ea0ff;">2</span>
+            </div>
+            <div style="margin-top:auto;border-top:1px solid #242a32;padding-top:10px;">
+              <div style="font:600 10px/1 'JetBrains Mono',monospace;color:#4d5870;letter-spacing:0.08em;padding:0 8px 8px 8px;">SERIAL · COM3</div>
+              <div style="display:flex;justify-content:space-between;padding:3px 8px;font:400 10.5px/1.5 'JetBrains Mono',monospace;"><span style="color:#5e6a7a;">baud</span><span style="color:#c2cad6;">115200</span></div>
+              <div style="display:flex;justify-content:space-between;padding:3px 8px;font:400 10.5px/1.5 'JetBrains Mono',monospace;"><span style="color:#5e6a7a;">parity</span><span style="color:#c2cad6;">N · 8 · 1</span></div>
+              <div style="display:flex;justify-content:space-between;padding:3px 8px;font:400 10.5px/1.5 'JetBrains Mono',monospace;"><span style="color:#5e6a7a;">xonxoff</span><span style="color:#7a8494;">off</span></div>
+              <div style="display:flex;justify-content:space-between;padding:3px 8px;font:400 10.5px/1.5 'JetBrains Mono',monospace;"><span style="color:#5e6a7a;">char-mode</span><span style="color:#7a8494;">off</span></div>
+            </div>
+          </div>
+
+          <!-- center terminal -->
+          <div style="flex:1;display:flex;flex-direction:column;background:#0c0f13;min-width:0;">
+            <div style="height:34px;border-bottom:1px solid #1c2128;display:flex;align-items:center;padding:0 14px;gap:18px;">
+              <span style="font:600 11.5px/34px 'JetBrains Mono',monospace;color:#e6ebf2;border-bottom:2px solid #1d6fe0;height:34px;">console</span>
+              <span style="font:500 11.5px/34px 'JetBrains Mono',monospace;color:#5e6a7a;">clients · 3</span>
+              <span style="font:500 11.5px/34px 'JetBrains Mono',monospace;color:#5e6a7a;">raw hex</span>
+              <span style="margin-left:auto;font:500 10.5px/34px 'JetBrains Mono',monospace;color:#37b67a;">● recording</span>
+            </div>
+            <div style="flex:1;padding:13px 15px;overflow:hidden;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.95;">
+              <div style="color:#4d5870;">12:04:01 <span style="color:#9aa6b6;">server listening on 0.0.0.0:5000</span></div>
+              <div style="color:#4d5870;">12:04:07 <span style="color:#37b67a;">serial COM3 opened @ 115200 8N1</span></div>
+              <div style="color:#4d5870;">12:04:07 <span style="color:#5ea0ff;">+ client 192.168.1.24:51884  (1)</span></div>
+              <div style="color:#4d5870;">12:04:09 <span style="color:#5ea0ff;">+ client 192.168.1.31:49210  (2)</span></div>
+              <div style="color:#4d5870;">12:05:11 <span style="color:#5ea0ff;">+ client 10.0.0.8:60122      (3)</span></div>
+              <div style="color:#4d5870;">12:05:42 <span style="color:#c7cedb;">rx → U-Boot 2021.07 (build 0421)</span></div>
+              <div style="color:#4d5870;">12:05:42 <span style="color:#c7cedb;">rx → DRAM:  512 MiB</span></div>
+              <div style="color:#4d5870;">12:05:43 <span style="color:#c7cedb;">rx → Net:   eth0: ethernet@1c30000</span></div>
+              <div style="color:#4d5870;">12:06:18 <span style="color:#c7cedb;">rx → Welcome to BusyBox v1.34.1</span></div>
+              <div style="color:#4d5870;">12:06:22 <span style="color:#e6c07b;">tx ← root</span></div>
+              <div style="color:#4d5870;">12:06:23 <span style="color:#c7cedb;">rx → # </span></div>
+              <div style="color:#4d5870;">12:07:05 <span style="color:#9aa6b6;">throughput tx 142 B · rx 1.2 kB</span></div>
+            </div>
+            <div style="height:40px;border-top:1px solid #1c2128;display:flex;align-items:center;padding:0 14px;gap:10px;">
+              <span style="font:700 12px/1 'JetBrains Mono',monospace;color:#37b67a;">›</span>
+              <div style="flex:1;font:400 11.5px/1 'JetBrains Mono',monospace;color:#4d5870;">send to serial…</div>
+              <span style="padding:3px 8px;border:1px solid #2a313b;border-radius:5px;font:500 10px/1 'JetBrains Mono',monospace;color:#7a8494;">CRLF</span>
+              <span style="padding:3px 8px;background:#1a2230;border:1px solid #1d6fe0;border-radius:5px;font:500 10px/1 'JetBrains Mono',monospace;color:#5ea0ff;">echo</span>
+            </div>
+          </div>
+
+          <!-- right info -->
+          <div style="width:248px;background:#12161b;border-left:1px solid #242a32;padding:12px 12px;">
+            <div style="font:600 10px/1 'JetBrains Mono',monospace;color:#4d5870;letter-spacing:0.08em;margin-bottom:10px;">THROUGHPUT</div>
+            <div style="display:flex;gap:8px;margin-bottom:14px;">
+              <div style="flex:1;background:#1a1f26;border:1px solid #242a32;border-radius:7px;padding:10px;"><div style="font:400 9px/1 'JetBrains Mono',monospace;color:#5e6a7a;">▲ TX</div><div style="font:700 14px/1 'JetBrains Mono',monospace;color:#e6ebf2;margin-top:6px;">142<span style="font:500 9px/1;color:#5e6a7a;"> B</span></div></div>
+              <div style="flex:1;background:#1a1f26;border:1px solid #242a32;border-radius:7px;padding:10px;"><div style="font:400 9px/1 'JetBrains Mono',monospace;color:#5e6a7a;">▼ RX</div><div style="font:700 14px/1 'JetBrains Mono',monospace;color:#e6ebf2;margin-top:6px;">1.2<span style="font:500 9px/1;color:#5e6a7a;"> MB</span></div></div>
+            </div>
+            <div style="font:600 10px/1 'JetBrains Mono',monospace;color:#4d5870;letter-spacing:0.08em;margin-bottom:10px;">CLIENTS · 3</div>
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 9px;background:#1a1f26;border-radius:7px;margin-bottom:6px;"><span style="width:6px;height:6px;border-radius:50%;background:#37b67a;"></span><span style="flex:1;font:500 10.5px/1 'JetBrains Mono',monospace;color:#c2cad6;">192.168.1.24</span><span style="font:400 9.5px/1 'JetBrains Mono',monospace;color:#5e6a7a;">51884</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 9px;background:#1a1f26;border-radius:7px;margin-bottom:6px;"><span style="width:6px;height:6px;border-radius:50%;background:#37b67a;"></span><span style="flex:1;font:500 10.5px/1 'JetBrains Mono',monospace;color:#c2cad6;">192.168.1.31</span><span style="font:400 9.5px/1 'JetBrains Mono',monospace;color:#5e6a7a;">49210</span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 9px;background:#1a1f26;border-radius:7px;margin-bottom:14px;"><span style="width:6px;height:6px;border-radius:50%;background:#37b67a;"></span><span style="flex:1;font:500 10.5px/1 'JetBrains Mono',monospace;color:#c2cad6;">10.0.0.8</span><span style="font:400 9.5px/1 'JetBrains Mono',monospace;color:#5e6a7a;">60122</span></div>
+            <div style="border-top:1px solid #242a32;padding-top:12px;">
+              <div style="display:flex;align-items:center;gap:7px;padding:8px;background:#1a1f26;border:1px solid #2a313b;border-radius:7px;justify-content:center;font:600 11px/1 'JetBrains Mono',monospace;color:#ff7a7a;"><span style="display:inline-block;width:9px;height:9px;background:#ff7a7a;border-radius:1px;"></span>stop this port</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

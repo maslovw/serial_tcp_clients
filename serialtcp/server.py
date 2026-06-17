@@ -8,12 +8,14 @@ import logging
 
 class SerialServer():
     def __init__(self, port,
+                 host='',
                  on_tcp_receive=lambda data:None,
                  on_client_connect=lambda client:None,
                  on_client_disconnect=lambda client:None ):
         # self.port = kwargs['tcp_port']
         self.logger = logging.getLogger('Server {}'.format(port))
         self.port = port
+        self.host = host
         # self.conf = kwargs
         self.__stop = False
         self.clients = set()
@@ -57,7 +59,7 @@ class SerialServer():
     def __start_accept_thread(self):
         # configure server socket
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.bind(('', self.port))
+        self.socket.bind((self.host, self.port))
         self.socket.listen(1)
         self.socket.settimeout(1)
 

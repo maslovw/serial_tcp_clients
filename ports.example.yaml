@@ -1,0 +1,27 @@
+# Example configuration for the Port Manager GUI (serial-tcp-gui).
+#
+# Each entry under "ports" is one serial device shared over one TCP listen port.
+# The serial port opens when the first TCP client connects and closes when the
+# last disconnects; if the device is lost, clients stay connected while the
+# server reconnects.
+#
+# Required per entry: device, tcp_port. Everything else has sensible defaults.
+ports:
+  - name: Console            # optional label shown on the card (defaults to device)
+    device: COM3             # e.g. COM3 on Windows, /dev/ttyUSB0 on Linux
+    tcp_port: 5000
+    baudrate: 115200
+    parity: N                # one of N E O S M
+    xonxoff: false           # software flow control
+    char_mode: false         # send characters one at a time
+    char_delay: 0.0          # seconds between characters (char/char_mode)
+    wait_echo: 0.0           # seconds to wait for echo per character
+    allow_remote: false      # false = bind 127.0.0.1 (local only); true = 0.0.0.0
+    autostart: true          # start listening as soon as the GUI launches
+
+  - name: Sensor
+    device: /dev/ttyUSB0
+    tcp_port: 5002
+    baudrate: 57600
+    parity: E
+    autostart: false

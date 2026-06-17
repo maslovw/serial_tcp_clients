@@ -1,7 +1,17 @@
 /build/
+/dist/
 /.idea/
 __pycache__
 /.*/
 *.egg-info/
 .log.txt
+
+# executables / build output (build them with deploy/build*.bat)
+*.exe
+
+# design-handoff archive (kept unpacked under PROMPT/ instead)
+/SerialGUI.zip
+
+# GUI runtime config written by the app
+/serialtcp_ports.yaml
 
