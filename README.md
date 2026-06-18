@@ -232,6 +232,11 @@ A ready-to-edit example lives in [`ports.example.yaml`](ports.example.yaml).
 - **Console** — the live log renders ANSI colours and splits CR/CRLF/LF lines.
   The input row sends what you type; the dropdown next to it picks the appended
   line ending (`CRLF`/`LF`/`CR`/`none`), which is saved to the config.
+- **Terminal as a client** — the serial port is normally open only while a TCP
+  client is connected. Click **Connect** in the console input row to attach the
+  GUI itself as a client (opening the serial port) so you can send and receive in
+  the integrated terminal with no external client connected; **Disconnect**
+  releases it (and closes the port if nothing else is using it).
 - **Logging** — click **log** in the console header (or set `log_file` in the
   config / dialog) to record all serial activity to a file. Each line is stamped
   `[dd.mm.YY HH:MM:SS:MSEC]`.

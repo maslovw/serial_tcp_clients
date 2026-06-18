@@ -97,6 +97,7 @@ class PortService:
         self._server = None
         self._serial = None
         self._running = False
+        self._local_client = False   # GUI terminal acting as its own client
         self.started_at = None
 
         # Cumulative byte counters (bytes are counted at the service boundary).
@@ -127,10 +128,20 @@ class PortService:
         return len(self._server.get_clients())
 
     @property
+    def local_client(self):
+        """True when the integrated terminal is connected as a client."""
+        return self._local_client
+
+    @property
+    def has_consumers(self):
+        """Anything keeping the serial port open: TCP clients or the terminal."""
+        return self.client_count > 0 or self._local_client
+
+    @property
     def status(self):
         if not self._running:
             return STATUS_STOPPED
-        if self.client_count > 0 and not self.serial_connected:
+        if self.has_consumers and not self.serial_connected:
             return STATUS_RECONNECTING
         return STATUS_RUNNING
 
@@ -149,6 +160,7 @@ class PortService:
         self.rx_total = 0
         self.reconnect_attempt = 0
         self._line_bufs = {}
+        self._local_client = False
 
         cfg = self.config
         self._serial = SerialPort(
@@ -187,6 +199,7 @@ class PortService:
         if not self._running:
             return
         self._running = False
+        self._local_client = False
         server, serial_port = self._server, self._serial
         try:
             if server:
@@ -198,6 +211,27 @@ class PortService:
         self.reconnect_attempt = 0
         self._emit('status', 'stopped')
         self._close_log()
+
+    def connect_local(self):
+        """Connect the integrated terminal as a client, opening the serial port.
+
+        Lets the GUI send/receive on the console even with no TCP clients.
+        """
+        if not self._running or self._local_client:
+            return
+        self._local_client = True
+        self._emit('conn', 'terminal connected')
+        if self._serial and not self._serial.is_connected:
+            self._serial.open()
+
+    def disconnect_local(self):
+        """Disconnect the integrated terminal; close serial if nothing else needs it."""
+        if not self._local_client:
+            return
+        self._local_client = False
+        self._emit('conn', 'terminal disconnected')
+        if self.client_count == 0 and self._serial:
+            self._serial.close()
 
     def send_to_serial(self, data: bytes):
         """Transmit bytes to the serial device (used by the console input)."""
@@ -241,7 +275,7 @@ class PortService:
         remaining = self.client_count
         self._emit('conn', 'client {} disconnected ({} total)'.format(
             _addr(client.address), remaining))
-        if remaining == 0 and self._serial:
+        if remaining == 0 and not self._local_client and self._serial:
             self._serial.close()
 
     def _on_serial_connect(self):
@@ -249,8 +283,8 @@ class PortService:
         self._emit('status', 'serial {} connected'.format(self.config.device))
 
     def _on_serial_disconnect(self):
-        # Distinguish a normal close (last client left) from a lost device.
-        if self._running and self.client_count > 0:
+        # Distinguish a normal close (no consumers left) from a lost device.
+        if self._running and self.has_consumers:
             self.reconnect_attempt = 0
             self._last_retry_log = time.time()
             self._emit('retry', 'serial {} disconnected'.format(self.config.device))

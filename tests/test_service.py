@@ -99,6 +99,36 @@ def test_roundtrip(pty_device):
     assert 'tx' in kinds     # client input logged
 
 
+def test_local_terminal_client(pty_device):
+    """The integrated terminal can open the serial port with no TCP clients."""
+    master_fd, _slave_fd, device = pty_device
+    cfg = PortConfig(device=device, tcp_port=_free_tcp_port())
+    service = PortService(cfg)
+    service.start()
+    try:
+        assert service.serial_connected is False    # nothing keeping it open yet
+
+        service.connect_local()
+        assert service.local_client is True
+        assert _wait(lambda: service.serial_connected), 'serial did not open for terminal'
+        assert service.status == STATUS_RUNNING
+
+        # send works even though no TCP client is connected
+        service.send_to_serial(b'hi\n')
+        assert _wait(lambda: os.read(master_fd, 64) == b'hi\n')
+
+        # and serial RX still flows to the console buffer
+        os.write(master_fd, b'from device\n')
+        assert _wait(lambda: service.rx_total >= len(b'from device\n'))
+
+        # disconnecting the terminal closes serial (no other consumers)
+        service.disconnect_local()
+        assert service.local_client is False
+        assert _wait(lambda: not service.serial_connected)
+    finally:
+        service.stop()
+
+
 def test_send_to_serial(pty_device):
     master_fd, _slave_fd, device = pty_device
     cfg = PortConfig(device=device, tcp_port=_free_tcp_port())

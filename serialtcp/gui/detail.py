@@ -261,6 +261,12 @@ class DetailPanel(tk.Frame):
         bar = tk.Frame(parent, bg=c.con_bg)
         bar.pack(fill='x', padx=15, pady=(8, 13))
 
+        self._connect_btn = tk.Label(bar, bg='#1b212c', cursor='hand2',
+                                     font=self.theme.ui(11.5, 600), padx=12, pady=6)
+        self._connect_btn.pack(side='left', padx=(0, 8))
+        self._connect_btn.bind('<Button-1>', lambda _e: self._toggle_local(service))
+        self._update_connect_label(service)
+
         entry = tk.Entry(bar, bg='#1b212c', fg=c.con_rx, insertbackground=c.con_status,
                          relief='flat', font=self.theme.mono(11.5),
                          highlightthickness=1, highlightbackground='#2a323f',
@@ -291,6 +297,20 @@ class DetailPanel(tk.Frame):
         entry.bind('<Return>', do_send)
         widgets.FlatButton(bar, self.theme, 'Send', do_send, bg=c.accent, fg=c.white,
                            hover='#245fbd', size=11.5, padx=14, pady=5).pack(side='left', padx=(8, 0))
+
+    def _update_connect_label(self, service):
+        c = self.theme.colors
+        if service.local_client:
+            self._connect_btn.configure(text=widgets.SQUARE + ' Disconnect', fg=c.danger)
+        else:
+            self._connect_btn.configure(text=widgets.TRIANGLE + ' Connect', fg=c.con_live)
+
+    def _toggle_local(self, service):
+        if service.local_client:
+            service.disconnect_local()
+        else:
+            service.connect_local()
+        self._update_connect_label(service)
 
     def _update_log_label(self, service):
         c = self.theme.colors

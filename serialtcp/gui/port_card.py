@@ -5,7 +5,7 @@ import tkinter as tk
 
 from . import widgets
 from .util import RateMeter, format_rate
-from serialtcp.service import STATUS_RUNNING, STATUS_RECONNECTING
+from serialtcp.service import STATUS_RUNNING, STATUS_RECONNECTING, STATUS_STOPPED
 
 
 def _bind_recursive(widget, command):
@@ -44,9 +44,18 @@ class PortCard(tk.Frame):
         self._pill = widgets.StatusPill(header, theme)
         self._pill.pack(side='right', padx=(0, 8))
 
+        # --- serial connection row ---
+        serial = tk.Frame(inner, bg=c.white)
+        serial.pack(fill='x', pady=(8, 0))
+        self._serial_dot = tk.Label(serial, text=widgets.DOT, bg=c.white,
+                                    font=theme.ui(7))
+        self._serial_dot.pack(side='left')
+        self._serial_text = tk.Label(serial, bg=c.white, font=theme.ui(10.5, 500))
+        self._serial_text.pack(side='left', padx=(5, 0))
+
         # --- stats row ---
         stats = tk.Frame(inner, bg=c.white)
-        stats.pack(fill='x', pady=(11, 0))
+        stats.pack(fill='x', pady=(9, 0))
         self._out = self._stat_col(stats, widgets.ARROW_UP + ' OUT')
         self._out.frame.pack(side='left')
         self._in = self._stat_col(stats, widgets.ARROW_DOWN + ' IN')
@@ -92,6 +101,7 @@ class PortCard(tk.Frame):
         svc = self.service
         status = svc.status
         self._pill.set(status)
+        self._set_serial(status)
 
         active = status == STATUS_RUNNING
         tx_rate = self._tx_meter.sample(svc.tx_total, now)
@@ -111,6 +121,19 @@ class PortCard(tk.Frame):
             self._clients.configure(fg=c.text_medium2)
         else:
             self._clients.configure(fg=c.text_muted2)
+
+    def _set_serial(self, status):
+        """Reflect the serial device link: connected / connecting / disconnected."""
+        c = self.theme.colors
+        svc = self.service
+        if svc.serial_connected:
+            text, dot, fg = 'serial connected', c.ok_dot, c.ok_text
+        elif status != STATUS_STOPPED and svc.has_consumers:
+            text, dot, fg = 'serial connecting…', c.warn_dot, c.warn_text
+        else:
+            text, dot, fg = 'serial disconnected', c.stop_dot, c.text_muted2
+        self._serial_dot.configure(fg=dot)
+        self._serial_text.configure(text=text, fg=fg)
 
     def _set_rate(self, col, rate):
         c = self.theme.colors
