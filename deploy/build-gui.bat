@@ -37,6 +37,8 @@ pip install pyinstaller "pyserial>=3.3" "pyyaml>=5.1" || exit /b 1
 pyinstaller --onefile --windowed ^
     --name serial-tcp-gui ^
     --paths "." ^
+    --icon serialtcp\gui\assets\app.ico ^
+    --add-data "serialtcp\gui\assets;serialtcp/gui/assets" ^
     --hidden-import serial.tools.list_ports ^
     --hidden-import yaml ^
     serialtcp\gui\__main__.py || exit /b 1

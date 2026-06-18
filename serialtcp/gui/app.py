@@ -5,6 +5,8 @@ I/O threads report activity through a queue that is drained on the Tk main loop
 (``after``), so all widget mutation stays single-threaded.
 """
 
+import os
+import sys
 import queue
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -23,12 +25,78 @@ _TICK_MS = 200
 _REFRESH_EVERY = 5   # ticks between stat refreshes (5 * 200ms = 1s)
 _COLLAPSED_WIDTH = 358   # window width when the detail panel is hidden
 
+def _assets_dir():
+    # In a PyInstaller bundle data files are extracted under sys._MEIPASS;
+    # otherwise they sit next to this module.
+    base = getattr(sys, '_MEIPASS', None)
+    if base:
+        return os.path.join(base, 'serialtcp', 'gui', 'assets')
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')
+
+
+_ASSETS = _assets_dir()
+
+
+def _set_taskbar_app_id():
+    """On Windows, group the app under its own taskbar icon (not python's)."""
+    if os.name == 'nt':
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+                'maslovw.serialtcp.portmanager')
+        except Exception:
+            pass
+
+
+def _icon_debug(msg):
+    if os.environ.get('SERIALTCP_ICON_DEBUG'):
+        import tempfile
+        try:
+            with open(os.path.join(tempfile.gettempdir(), 'icon_debug.log'), 'a') as fh:
+                fh.write(msg + '\n')
+        except Exception:
+            pass
+
+
+def _apply_window_icon(root):
+    """Set the window/taskbar icon from the bundled assets. Returns kept refs."""
+    _icon_debug('assets={} isdir={}'.format(_ASSETS, os.path.isdir(_ASSETS)))
+    images = []
+    for name in ('icon_256.png', 'icon_128.png', 'icon_64.png', 'icon_48.png',
+                 'icon_32.png', 'icon_16.png'):
+        path = os.path.join(_ASSETS, name)
+        if os.path.exists(path):
+            try:
+                images.append(tk.PhotoImage(file=path))
+            except Exception as exc:
+                _icon_debug('PhotoImage fail {}: {!r}'.format(name, exc))
+    _icon_debug('images={}'.format(len(images)))
+    if images:
+        try:
+            root.iconphoto(True, *images)
+            _icon_debug('iconphoto ok')
+        except Exception as exc:
+            _icon_debug('iconphoto fail: {!r}'.format(exc))
+    if os.name == 'nt':
+        ico = os.path.join(_ASSETS, 'app.ico')
+        if os.path.exists(ico):
+            try:
+                root.iconbitmap(default=ico)
+                _icon_debug('iconbitmap ok')
+            except Exception as exc:
+                _icon_debug('iconbitmap fail: {!r}'.format(exc))
+        else:
+            _icon_debug('ico missing {}'.format(ico))
+    return images
+
 
 class App:
     def __init__(self, config_path):
         self.config_path = config_path
+        _set_taskbar_app_id()
         self.root = tk.Tk()
         self.root.title('Serial TCP Server v{}'.format(__version__))
+        self._icon_images = _apply_window_icon(self.root)
         self.root.geometry('{}x730'.format(_COLLAPSED_WIDTH))   # detail hidden by default
         self.root.minsize(330, 400)
 

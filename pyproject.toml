@@ -27,6 +27,9 @@ gui = [
 [tool.setuptools.dynamic]
 version = {attr = "serialtcp.__version__"}
 
+[tool.setuptools.package-data]
+"serialtcp.gui" = ["assets/*"]
+
 [tool.setuptools.packages.find]
 include = ["serialtcp*"]
 
