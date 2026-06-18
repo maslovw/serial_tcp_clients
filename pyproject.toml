@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "serial-tcp-clients"
-version = "2.1.0"
+dynamic = ["version"]
 description = "Share serial device through TCP connections"
 readme = "README.md"
 license = "MIT"
@@ -23,6 +23,9 @@ dependencies = [
 gui = [
     "PyYAML>=5.1",
 ]
+
+[tool.setuptools.dynamic]
+version = {attr = "serialtcp.__version__"}
 
 [tool.setuptools.packages.find]
 include = ["serialtcp*"]

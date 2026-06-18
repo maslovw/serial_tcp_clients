@@ -9,6 +9,7 @@ import queue
 import tkinter as tk
 from tkinter import ttk, messagebox
 
+from serialtcp import __version__
 from . import config as config_mod
 from . import widgets
 from .theme import Theme
@@ -27,7 +28,7 @@ class App:
     def __init__(self, config_path):
         self.config_path = config_path
         self.root = tk.Tk()
-        self.root.title('Serial TCP Server')
+        self.root.title('Serial TCP Server v{}'.format(__version__))
         self.root.geometry('{}x730'.format(_COLLAPSED_WIDTH))   # detail hidden by default
         self.root.minsize(330, 400)
 
