@@ -3,11 +3,10 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 
-from serialtcp.service import PortConfig
+from serialtcp.service import PortConfig, LINE_ENDINGS
 
 _BAUDRATES = ['9600', '19200', '38400', '57600', '115200', '230400', '460800', '921600']
 _PARITIES = ['N', 'E', 'O', 'S', 'M']
-_LINE_ENDINGS = ['CRLF', 'LF', 'CR', 'none']
 
 
 def list_serial_devices():
@@ -96,7 +95,7 @@ class _PortDialog(tk.Toplevel):
         row = self._row(body, 7)
         self._label(row, 'Send line ending')
         ttk.Combobox(row, textvariable=self._line_ending, width=24, state='readonly',
-                     values=_LINE_ENDINGS).pack(side='left')
+                     values=LINE_ENDINGS).pack(side='left')
 
         row = self._row(body, 8)
         self._label(row, 'Log file (optional)')

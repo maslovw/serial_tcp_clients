@@ -13,10 +13,8 @@ from .ansi import parse_ansi, clean
 from .util import format_bytes, format_duration
 from serialtcp.service import (
     STATUS_RUNNING, STATUS_RECONNECTING, STATUS_STOPPED,
+    LINE_ENDINGS, LINE_ENDING_BYTES,
 )
-
-_NEWLINES = {'CRLF': b'\r\n', 'LF': b'\n', 'CR': b'\r', 'none': b''}
-_LINE_ENDINGS = ['CRLF', 'LF', 'CR', 'none']
 
 _MAX_CONSOLE_LINES = 500
 
@@ -40,7 +38,7 @@ class DetailPanel(tk.Frame):
         if self._console is not None and service is not None:
             self._render_buffer(service)
 
-    def refresh(self, now=None):
+    def refresh(self):
         svc = self.service
         status = svc.status if svc else None
         key = (id(svc), status) if svc else None
@@ -274,7 +272,7 @@ class DetailPanel(tk.Frame):
         entry.pack(side='left', fill='x', expand=True, ipady=5, ipadx=8)
 
         nl_var = tk.StringVar(value=service.config.line_ending or 'CRLF')
-        opt = tk.OptionMenu(bar, nl_var, *_LINE_ENDINGS)
+        opt = tk.OptionMenu(bar, nl_var, *LINE_ENDINGS)
         opt.configure(bg='#1b212c', fg=c.con_ts, activebackground='#2a323f',
                       activeforeground=c.con_rx, relief='flat', highlightthickness=0,
                       bd=0, font=self.theme.ui(10), width=4)
@@ -290,7 +288,7 @@ class DetailPanel(tk.Frame):
             payload = entry.get()
             if not payload:
                 return
-            data = payload.encode('utf-8', 'replace') + _NEWLINES.get(nl_var.get(), b'\n')
+            data = payload.encode('utf-8', 'replace') + LINE_ENDING_BYTES.get(nl_var.get(), b'\n')
             service.send_to_serial(data)
             entry.delete(0, 'end')
 

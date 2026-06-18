@@ -20,7 +20,6 @@ class SerialPort():
         self.char_mode = kwargs.get('char_mode', False)
         self.wait_echo = kwargs.get('wait_echo', False)
         self.send_char_delay = kwargs.get('char_delay', None)
-        self.timeout = kwargs.get('timeout', 2)
         self.logger = logging.getLogger("Serial {}".format(port))
         self.is_connected = False
         self.lock = threading.Lock()
@@ -40,6 +39,16 @@ class SerialPort():
     def open(self):
         self._close_set = False
         self.__open()
+
+    def ensure_open(self):
+        """Open the port for a new consumer unless it is already open.
+
+        Centralises the first-consumer-opens policy shared by the CLI and the
+        GUI service: the guard stops a second consumer (TCP client or local
+        terminal) from spawning a duplicate receive thread.
+        """
+        if not self.is_connected:
+            self.open()
 
     def __open(self, throw=False):
         with self.lock:
@@ -84,9 +93,6 @@ class SerialPort():
             self.reconnect_thread.join(timeout=3)
             self.reconnect_thread = None
 
-    def set_on_received(self, on_received):
-        self._on_received = on_received
-
     def on_received(self, data):
         """
         received data from serial
@@ -128,9 +134,9 @@ class SerialPort():
                 if self.serial.port in p_names and not self.serial.isOpen():
                     self.__open(throw=True)
                 else:
-                    time.sleep(self.timeout)
+                    time.sleep(self.serial.timeout)
             except serial.SerialException:
-                time.sleep(self.timeout)
+                time.sleep(self.serial.timeout)
         self.logger.debug("try to reconnect stop {} {}".format(self.serial.is_open, self._close_set))
 
 

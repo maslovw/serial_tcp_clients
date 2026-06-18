@@ -40,22 +40,15 @@ class FlatButton(tk.Label):
                          highlightcolor=border or bg)
         self._bg = bg
         self._hover = hover or _shade(bg)
-        self._enabled = True
         _bind_click(self, command)
         self.bind('<Enter>', self._on_enter)
         self.bind('<Leave>', self._on_leave)
 
     def _on_enter(self, _e):
-        if self._enabled:
-            self.configure(bg=self._hover)
+        self.configure(bg=self._hover)
 
     def _on_leave(self, _e):
-        if self._enabled:
-            self.configure(bg=self._bg)
-
-    def set_enabled(self, enabled):
-        self._enabled = enabled
-        self.configure(cursor='hand2' if enabled else 'arrow')
+        self.configure(bg=self._bg)
 
 
 def primary_button(parent, theme, text, command, glyph=TRIANGLE):

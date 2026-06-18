@@ -19,7 +19,6 @@ class SerialClient():
         self._buffersize = 1024
         self.logger = logging.getLogger("Client{}".format(address))
         self.err_cnt = 0
-        # self._on_received = (lambda x: None) if on_received is None else on_received
         try:
             self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 1)
             self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 1)
@@ -106,4 +105,3 @@ class SerialClient():
         self.logger.debug("stop")
         self.socket.close()
         self._on_disconnect(self)
-        # self.thread = None

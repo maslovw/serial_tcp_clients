@@ -34,6 +34,11 @@ STATUS_STOPPED = 'stopped'
 STATUS_RUNNING = 'running'
 STATUS_RECONNECTING = 'reconnecting'
 
+# Console send line-ending choices and their byte encodings, shared by the
+# add/edit dialog and the console send line.
+LINE_ENDINGS = ['CRLF', 'LF', 'CR', 'none']
+LINE_ENDING_BYTES = {'CRLF': b'\r\n', 'LF': b'\n', 'CR': b'\r', 'none': b''}
+
 # How often the serial layer retries a lost device (matches SerialPort.timeout).
 RECONNECT_INTERVAL = 2.0
 
@@ -221,8 +226,8 @@ class PortService:
             return
         self._local_client = True
         self._emit('conn', 'terminal connected')
-        if self._serial and not self._serial.is_connected:
-            self._serial.open()
+        if self._serial:
+            self._serial.ensure_open()
 
     def disconnect_local(self):
         """Disconnect the integrated terminal; close serial if nothing else needs it."""
@@ -268,8 +273,8 @@ class PortService:
     def _on_client_connect(self, client):
         self._emit('conn', 'client {} connected ({} total)'.format(
             _addr(client.address), self.client_count))
-        if self._serial and not self._serial.is_connected:
-            self._serial.open()
+        if self._serial:
+            self._serial.ensure_open()
 
     def _on_client_disconnect(self, client):
         remaining = self.client_count

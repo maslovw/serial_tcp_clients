@@ -44,10 +44,6 @@ class RateMeter:
         self._prev_total = None
         self._prev_time = None
 
-    def reset(self):
-        self._prev_total = None
-        self._prev_time = None
-
     def sample(self, total, now):
         rate = 0.0
         if self._prev_total is not None and now > self._prev_time:

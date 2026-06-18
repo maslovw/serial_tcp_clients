@@ -112,7 +112,7 @@ def start_service(**kwargs):
         logger.debug("tcp client connected: {}".format(client.address))
         if not serial_port.is_connected:
             logger.debug("opening serial port for first client")
-            serial_port.open()
+        serial_port.ensure_open()
 
         if kwargs.get('char_mode', False):
             client.send(TELNET_CHAR_MODE)
@@ -232,29 +232,11 @@ def parse_args():
         help="set parity, one of {N E O S M}, default: N",
         default='N')
 
-    # group.add_argument(
-    #     '--rtscts',
-    #     action='store_true',
-    #     help='enable RTS/CTS flow control (default off)',
-    #     default=False)
-    #
     group.add_argument(
         '--xonxoff',
         action='store_true',
         help='enable software flow control (default off)',
         default=False)
-    #
-    # group.add_argument(
-    #     '--rts',
-    #     type=int,
-    #     help='set initial RTS line state (possible values: 0, 1)',
-    #     default=None)
-    #
-    # group.add_argument(
-    #     '--dtr',
-    #     type=int,
-    #     help='set initial DTR line state (possible values: 0, 1)',
-    #     default=None)
 
     group.add_argument(
         '-cm', '--char-mode',
@@ -304,8 +286,6 @@ def parse_args():
             print("No device specified, see --help")
         if not args.tcp_port:
             print("No tcp port specified, see --help")
-        # s = SerialServer(**vars(args))
-        # s.run()
 
 
 if __name__ == '__main__':

@@ -1,6 +1,4 @@
 import socket
-from copy import deepcopy
-import time
 import threading
 from serialtcp.client import SerialClient
 import logging
@@ -12,11 +10,9 @@ class SerialServer():
                  on_tcp_receive=lambda data:None,
                  on_client_connect=lambda client:None,
                  on_client_disconnect=lambda client:None ):
-        # self.port = kwargs['tcp_port']
         self.logger = logging.getLogger('Server {}'.format(port))
         self.port = port
         self.host = host
-        # self.conf = kwargs
         self.__stop = False
         self.clients = set()
         self.thread_accept = threading.Thread(target=SerialServer.__thread_accept_client, args=(self,), daemon=True)
@@ -54,7 +50,6 @@ class SerialServer():
                 if self.__stop:
                     return
                 self.logger.error("accept client failed: {}".format(e))
-            # self._make_thread(client_socket, addr)
 
     def __start_accept_thread(self):
         # configure server socket
@@ -80,7 +75,7 @@ class SerialServer():
 
     def get_clients(self):
         with self.lock:
-            ret = set(x for x in self.clients)
+            ret = set(self.clients)
         return ret
 
     def send_to_all(self, data):
