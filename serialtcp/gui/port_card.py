@@ -17,14 +17,16 @@ def _bind_recursive(widget, command):
 class PortCard(tk.Frame):
     """Selectable card showing a port's status, throughput and client count."""
 
-    def __init__(self, parent, theme, service, on_select):
+    def __init__(self, parent, theme, service, on_select, on_toggle):
         c = theme.colors
         super().__init__(parent, bg=c.white, highlightthickness=1,
                          highlightbackground=c.divider, highlightcolor=c.divider)
         self.theme = theme
         self.service = service
         self.on_select = on_select
+        self.on_toggle = on_toggle
         self.selected = False
+        self._detail_visible = True
         self._tx_meter = RateMeter()
         self._rx_meter = RateMeter()
 
@@ -70,6 +72,8 @@ class PortCard(tk.Frame):
         self._clients.pack(anchor='e', pady=(4, 0))
 
         _bind_recursive(self, self._select)
+        # The chevron toggles the detail panel instead of just selecting.
+        self._chevron.bind('<Button-1>', lambda _e: self.on_toggle(self.service))
         self.refresh()
 
     def _stat_col(self, parent, caption):
@@ -88,12 +92,16 @@ class PortCard(tk.Frame):
     def _select(self):
         self.on_select(self.service)
 
-    def set_selected(self, selected):
+    def set_state(self, selected, detail_visible):
         self.selected = selected
+        self._detail_visible = detail_visible
         c = self.theme.colors
         border = c.accent if selected else c.divider
         self.configure(highlightbackground=border, highlightcolor=border)
-        self._chevron.configure(fg=c.accent if selected else c.chevron)
+        # The selected card points left (‹ hide) while the detail panel is open,
+        # otherwise right (› show).
+        glyph = widgets.CHEVRON_LEFT if (selected and detail_visible) else widgets.CHEVRON
+        self._chevron.configure(text=glyph, fg=c.accent if selected else c.chevron)
 
     def refresh(self, now=None):
         now = time.time() if now is None else now

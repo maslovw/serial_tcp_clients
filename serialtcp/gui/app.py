@@ -20,6 +20,7 @@ from serialtcp.service import PortService
 # Loop cadence: drain the event queue often; refresh stats once per second.
 _TICK_MS = 200
 _REFRESH_EVERY = 5   # ticks between stat refreshes (5 * 200ms = 1s)
+_COLLAPSED_WIDTH = 358   # window width when the detail panel is hidden
 
 
 class App:
@@ -27,14 +28,16 @@ class App:
         self.config_path = config_path
         self.root = tk.Tk()
         self.root.title('Serial TCP Server')
-        self.root.geometry('1040x730')
-        self.root.minsize(820, 560)
+        self.root.geometry('{}x730'.format(_COLLAPSED_WIDTH))   # detail hidden by default
+        self.root.minsize(330, 400)
 
         self.theme = Theme()
         self.events = queue.Queue()
         self.services = []
         self.cards = []
         self.selected = None
+        self._detail_visible = False
+        self._expanded_width = 1040
         self._tick_count = 0
 
         self.root.configure(bg=self.theme.colors.panel)
@@ -71,27 +74,35 @@ class App:
 
         right = tk.Frame(inner, bg=c.white)
         right.pack(side='right')
-        widgets.primary_button(right, self.theme, 'Start all', self._start_all,
-                               glyph=widgets.TRIANGLE).pack(side='left', padx=(0, 8))
-        widgets.FlatButton(right, self.theme, 'Stop all', self._stop_all,
-                           glyph=widgets.SQUARE, bg=c.chip_muted_bg, fg=c.text_medium2,
-                           border=c.border).pack(side='left', padx=(0, 8))
-        tk.Frame(right, bg=c.divider, width=1, height=24).pack(side='left', padx=(1, 8))
         widgets.icon_button(right, self.theme, widgets.PLUS, self._add_port).pack(side='left', padx=(0, 8))
         widgets.icon_button(right, self.theme, widgets.GEAR, self._open_settings).pack(side='left')
 
     def _build_body(self):
         c = self.theme.colors
-        body = tk.Frame(self.root, bg=c.panel)
-        body.pack(fill='both', expand=True)
+        self._body = tk.Frame(self.root, bg=c.panel)
+        self._body.pack(fill='both', expand=True)
 
-        # sidebar (master)
-        sidebar = tk.Frame(body, bg=c.sidebar, width=340)
-        sidebar.pack(side='left', fill='y')
-        sidebar.pack_propagate(False)
-        tk.Frame(body, bg=c.border_soft, width=1).pack(side='left', fill='y')
+        # sidebar (master). Detail is hidden by default, so the sidebar fills.
+        self._sidebar = tk.Frame(self._body, bg=c.sidebar, width=340)
+        self._sidebar.pack(side='left', fill='both' if not self._detail_visible else 'y',
+                           expand=not self._detail_visible)
+        self._sidebar.pack_propagate(False)
+        self._body_divider = tk.Frame(self._body, bg=c.border_soft, width=1)
+        if self._detail_visible:
+            self._body_divider.pack(side='left', fill='y')
 
-        self._list_inner = self._make_scrollable(sidebar)
+        # Start all / Stop all toolbar at the top of the list
+        toolbar = tk.Frame(self._sidebar, bg=c.sidebar)
+        toolbar.pack(side='top', fill='x', padx=14, pady=(14, 2))
+        widgets.primary_button(toolbar, self.theme, 'Start all', self._start_all,
+                               glyph=widgets.TRIANGLE).pack(side='left', padx=(0, 8))
+        widgets.FlatButton(toolbar, self.theme, 'Stop all', self._stop_all,
+                           glyph=widgets.SQUARE, bg=c.chip_muted_bg, fg=c.text_medium2,
+                           border=c.border).pack(side='left')
+
+        scroll_host = tk.Frame(self._sidebar, bg=c.sidebar)
+        scroll_host.pack(side='top', fill='both', expand=True)
+        self._list_inner = self._make_scrollable(scroll_host)
         self._add_footer = tk.Label(
             self._list_inner, text=widgets.PLUS + '  Add serial → TCP port',
             bg=c.sidebar, fg=c.text_muted, font=self.theme.ui(12, 600),
@@ -102,14 +113,16 @@ class App:
         self._bind_sidebar_wheel(self._add_footer)
 
         # detail
-        self.detail = DetailPanel(body, self.theme, {
+        self.detail = DetailPanel(self._body, self.theme, {
             'start': self._start_one,
             'stop': self._stop_one,
             'edit': self._edit_port,
             'remove': self._remove_port,
             'save': self._save,
         })
-        self.detail.pack(side='left', fill='both', expand=True, padx=20, pady=18)
+        self._detail_pack = dict(side='left', fill='both', expand=True, padx=20, pady=18)
+        if self._detail_visible:
+            self.detail.pack(**self._detail_pack)
 
     def _make_scrollable(self, parent):
         c = self.theme.colors
@@ -153,7 +166,10 @@ class App:
                 if not ok:
                     errors.append(err)
         if self.services:
-            self._select(self.services[0])
+            # Pre-select the first port (highlighted) but keep the panel hidden.
+            self.selected = self.services[0]
+            self.detail.show(self.services[0])
+            self._update_cards_state()
         else:
             self.detail.show(None)
         self._refresh()
@@ -164,7 +180,7 @@ class App:
     def _add_service(self, cfg, select=True):
         service = PortService(cfg, on_event=self._on_event)
         self.services.append(service)
-        card = PortCard(self._list_inner, self.theme, service, self._select)
+        card = PortCard(self._list_inner, self.theme, service, self._select, self._chevron)
         card.pack(fill='x', pady=(0, 10), before=self._add_footer)
         self._bind_sidebar_wheel(card)
         self.cards.append(card)
@@ -180,9 +196,50 @@ class App:
 
     def _select(self, service):
         self.selected = service
-        for card in self.cards:
-            card.set_selected(card.service is service)
+        if not self._detail_visible:
+            self._show_detail()
+        self._update_cards_state()
         self.detail.show(service)
+
+    def _update_cards_state(self):
+        for card in self.cards:
+            card.set_state(card.service is self.selected, self._detail_visible)
+
+    def _chevron(self, service):
+        """Card chevron: hide the panel if it's the open one, else select+show."""
+        if service is self.selected and self._detail_visible:
+            self._hide_detail()
+        else:
+            self.selected = service
+            self._show_detail()
+            self._update_cards_state()
+            self.detail.show(service)
+
+    def _show_detail(self):
+        if self._detail_visible:
+            return
+        self._detail_visible = True
+        self._sidebar.pack_configure(fill='y', expand=False)
+        self._body_divider.pack(side='left', fill='y', after=self._sidebar)
+        self.detail.pack(**self._detail_pack)
+        self.root.minsize(820, 560)
+        self.root.geometry('{}x{}'.format(self._expanded_width, self.root.winfo_height()))
+        self._update_cards_state()
+
+    def _hide_detail(self):
+        if not self._detail_visible:
+            return
+        width = self.root.winfo_width()
+        if width > 100:
+            self._expanded_width = width
+        self._detail_visible = False
+        self.detail.pack_forget()
+        self._body_divider.pack_forget()
+        self._sidebar.pack_configure(fill='both', expand=True)
+        # Shrink to a compact list; lower the minimum so the window can narrow.
+        self.root.minsize(330, 400)
+        self.root.geometry('{}x{}'.format(_COLLAPSED_WIDTH, self.root.winfo_height()))
+        self._update_cards_state()
 
     # ----------------------------------------------------------- actions
     def _try_start(self, service):
@@ -241,7 +298,7 @@ class App:
         if card:
             card.destroy()
             self.cards.remove(card)
-            new_card = PortCard(self._list_inner, self.theme, service, self._select)
+            new_card = PortCard(self._list_inner, self.theme, service, self._select, self._chevron)
             new_card.pack(fill='x', pady=(0, 10), before=self._add_footer)
             self._bind_sidebar_wheel(new_card)
             self.cards.append(new_card)

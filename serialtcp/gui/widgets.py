@@ -9,7 +9,8 @@ import tkinter as tk
 # Glyphs used across the UI.
 TRIANGLE = '▶'   # play
 SQUARE = '■'     # stop
-CHEVRON = '›'    # ›
+CHEVRON = '›'    # › (expand / show detail)
+CHEVRON_LEFT = '‹'  # ‹ (collapse / hide detail)
 GEAR = '⚙'       # settings
 PLUS = '＋'       # ＋ fullwidth plus
 ARROW_UP = '▲'   # ▲
