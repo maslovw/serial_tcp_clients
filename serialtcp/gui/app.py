@@ -18,6 +18,7 @@ from .theme import Theme
 from .port_card import PortCard
 from .detail import DetailPanel
 from .dialog import open_dialog
+from .about import open_about
 from serialtcp.service import PortService
 
 # Loop cadence: drain the event queue often; refresh stats once per second.
@@ -131,8 +132,16 @@ class App:
         inner = tk.Frame(bar, bg=c.white)
         inner.pack(fill='x', padx=16, pady=12)
 
-        tk.Label(inner, text='⇄', bg=c.accent, fg=c.white, font=self.theme.ui(15, 700),
-                 width=2, height=1).pack(side='left')
+        icon_path = os.path.join(_ASSETS, 'icon_32.png')
+        try:
+            self._appbar_icon = tk.PhotoImage(file=icon_path) if os.path.exists(icon_path) else None
+        except Exception:
+            self._appbar_icon = None
+        if self._appbar_icon is not None:
+            tk.Label(inner, image=self._appbar_icon, bg=c.white).pack(side='left')
+        else:
+            tk.Label(inner, text='⇄', bg=c.accent, fg=c.white,
+                     font=self.theme.ui(15, 700), width=2, height=1).pack(side='left')
         idcol = tk.Frame(inner, bg=c.white)
         idcol.pack(side='left', padx=(13, 0))
         tk.Label(idcol, text='Port Manager', bg=c.white, fg=c.text_strong,
@@ -401,6 +410,8 @@ class App:
         menu.add_command(label='Save configuration', command=self._save)
         menu.add_command(label='Reload configuration', command=self._reload)
         menu.add_separator()
+        menu.add_command(label='About', command=self._open_about)
+        menu.add_separator()
         menu.add_command(label='Config: {}'.format(self.config_path), state='disabled')
         try:
             x = self.root.winfo_pointerx()
@@ -408,6 +419,9 @@ class App:
             menu.tk_popup(x, y)
         finally:
             menu.grab_release()
+
+    def _open_about(self):
+        open_about(self.root, self.theme, _ASSETS)
 
     def _reload(self):
         if not messagebox.askyesno('Reload', 'Stop all ports and reload config from disk?'):

@@ -54,6 +54,13 @@ class PortCard(tk.Frame):
         self._serial_dot.pack(side='left')
         self._serial_text = tk.Label(serial, bg=c.white, font=theme.ui(10.5, 500))
         self._serial_text.pack(side='left', padx=(5, 0))
+        # Reserve the header chevron's width so the chip's right edge lines up
+        # with the status pill above (which the chevron insets), not the raw edge.
+        self._chevron_spacer(serial).pack(side='right')
+        # serial port name chip, recoloured by link state in _set_serial
+        self._port_chip = tk.Label(serial, text=service.config.device,
+                                   font=theme.mono(10.5, 600), padx=9, pady=2)
+        self._port_chip.pack(side='right', padx=(0, 8))
 
         # --- stats row ---
         stats = tk.Frame(inner, bg=c.white)
@@ -63,8 +70,9 @@ class PortCard(tk.Frame):
         self._in = self._stat_col(stats, widgets.ARROW_DOWN + ' IN')
         self._in.frame.pack(side='left', padx=(24, 0))
 
+        self._chevron_spacer(stats).pack(side='right')
         clients_col = tk.Frame(stats, bg=c.white)
-        clients_col.pack(side='right')
+        clients_col.pack(side='right', padx=(0, 8))
         tk.Label(clients_col, text='CLIENTS', bg=c.white, fg=c.text_muted2,
                  font=theme.ui(9, 600)).pack(anchor='e')
         self._clients = tk.Label(clients_col, text='0', bg=c.white, fg=c.text_muted2,
@@ -88,6 +96,13 @@ class PortCard(tk.Frame):
         col.frame = frame
         col.value = value
         return col
+
+    def _chevron_spacer(self, parent):
+        """Invisible label matching the header chevron, so right-aligned content
+        on other rows lines up with the status pill instead of the card edge."""
+        c = self.theme.colors
+        return tk.Label(parent, text=widgets.CHEVRON, bg=c.white, fg=c.white,
+                        font=self.theme.ui(15, 700))
 
     def _select(self):
         self.on_select(self.service)
@@ -136,12 +151,16 @@ class PortCard(tk.Frame):
         svc = self.service
         if svc.serial_connected:
             text, dot, fg = 'serial connected', c.ok_dot, c.ok_text
+            chip_bg, chip_fg = c.ok_pill_bg, c.ok_text
         elif status != STATUS_STOPPED and svc.has_consumers:
             text, dot, fg = 'serial connecting…', c.warn_dot, c.warn_text
+            chip_bg, chip_fg = c.warn_pill_bg, c.warn_text
         else:
             text, dot, fg = 'serial disconnected', c.stop_dot, c.text_muted2
+            chip_bg, chip_fg = c.stop_pill_bg, c.stop_text
         self._serial_dot.configure(fg=dot)
         self._serial_text.configure(text=text, fg=fg)
+        self._port_chip.configure(bg=chip_bg, fg=chip_fg)
 
     def _set_rate(self, col, rate):
         c = self.theme.colors
