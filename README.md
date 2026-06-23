@@ -89,21 +89,7 @@ serial -> TCP mappings at once from a single YAML config. It uses a
 master-detail layout: a list of port cards on the left, and the selected port's
 console, settings, throughput and live log on the right.
 
-```
-+-------------------------------------------------------------+
-| Port Manager            3 mappings  [Start all] [Stop all] +|
-+----------------------+--------------------------------------+
-| COM103   -> :5000  > | COM103  -> 0.0.0.0:5000      [Stop]  |
-|   Running            | Running . uptime 00:12:44            |
-|   OUT 2 B/s  IN 30   | [CLIENTS 1][TX 142KB][RX 1.2MB][BAUD]|
-+----------------------+ SERIAL  8N1  parity N  xon/xoff off  |
-| COM4     -> :5001  > | +----------------------------------+ |
-|   Stopped            | | CONSOLE - COM103          * live | |
-+----------------------+ | [12:05] client connected         | |
-| + Add serial -> TCP  | | [12:05] U-Boot 2021.07 ...       | |
-+----------------------+ +----------------------------------+ |
-+-------------------------------------------------------------+
-```
+![Port Manager GUI](docs/port-manager.png)
 
 For each mapping you can Start/Stop the TCP listener, watch live OUT/IN
 throughput and the connected-client count, read a colour-coded console, send
