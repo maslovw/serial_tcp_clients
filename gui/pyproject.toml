@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "serial-tcp-clients-gui"
+dynamic = ["version"]
+description = "Tkinter Port Manager desktop GUI for serial-tcp-clients"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [
+    {name = "maslovw", email = "serialtcp@maslovw.com"},
+]
+keywords = ["serial", "com", "port", "tcp", "gui", "tkinter", "port manager"]
+# Tkinter is a stdlib module (not a pip package); on Linux it may need a system
+# package, e.g. Debian/Ubuntu: `apt install python3-tk`.
+dependencies = [
+    "serial-tcp-clients>=2.2.3",
+    "PyYAML>=5.1",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "serialtcp_gui.__version__"}
+
+[tool.setuptools.package-data]
+"serialtcp_gui" = ["assets/*"]
+
+[tool.setuptools.packages.find]
+include = ["serialtcp_gui*"]
+
+[project.scripts]
+serial-tcp-gui = "serialtcp_gui.app:main"
+
+[project.urls]
+Homepage = "https://github.com/maslovw/serial_tcp_clients"

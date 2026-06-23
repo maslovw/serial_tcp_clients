@@ -1,14 +1,14 @@
 """Tests for the GUI's tkinter-free helpers: config I/O and formatting.
 
-These import serialtcp.gui.config / .util only, which do not pull in tkinter,
+These import serialtcp_gui.config / .util only, which do not pull in tkinter,
 so they run anywhere pytest does.
 """
 import os
 import tempfile
 
 from serialtcp.service import PortConfig
-from serialtcp.gui import config as config_mod
-from serialtcp.gui.util import (
+from serialtcp_gui import config as config_mod
+from serialtcp_gui.util import (
     format_bytes, format_rate, format_duration, RateMeter,
 )
 

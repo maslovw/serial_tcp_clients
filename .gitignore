@@ -1,5 +1,5 @@
-/build/
-/dist/
+build/
+dist/
 /.idea/
 __pycache__
 /.*/

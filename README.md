@@ -25,6 +25,10 @@ Works on Windows and Linux (including Raspberry Pi).
 pip install serial-tcp-clients
 ```
 
+This installs the **CLI/backend only** (depends on `pyserial` alone — no GUI, no
+Tkinter, no PyYAML). For the desktop app see [GUI (Port Manager)](#gui-port-manager),
+which is a separate `serial-tcp-clients-gui` package.
+
 Or from source:
 
 ```bash
@@ -84,10 +88,10 @@ connect/disconnect events) to TCP clients.
 
 ## GUI (Port Manager)
 
-The package ships an optional **Tkinter desktop app** that manages **many**
-serial -> TCP mappings at once from a single YAML config. It uses a
-master-detail layout: a list of port cards on the left, and the selected port's
-console, settings, throughput and live log on the right.
+A separate **Tkinter desktop app** (the `serial-tcp-clients-gui` package, built on
+the CLI/backend) manages **many** serial -> TCP mappings at once from a single
+YAML config. It uses a master-detail layout: a list of port cards on the left,
+and the selected port's console, settings, throughput and live log on the right.
 
 ![Port Manager GUI](docs/port-manager.png)
 
@@ -112,8 +116,11 @@ the GUI shows a "reconnecting" banner and retries.
 **From PyPI:**
 
 ```bash
-pip install "serial-tcp-clients[gui]"
+pip install serial-tcp-clients-gui
 ```
+
+The GUI is its own package; it pulls in the CLI/backend package
+(`serial-tcp-clients`) and PyYAML automatically.
 
 **From source (recommended for development) — Windows:**
 
@@ -122,7 +129,7 @@ git clone https://github.com/maslovw/serial_tcp_clients.git
 cd serial_tcp_clients
 python -m venv .venv
 .venv\Scripts\activate
-pip install -e ".[gui]"
+pip install -e . -e gui
 ```
 
 **From source — Linux / macOS:**
@@ -132,7 +139,7 @@ git clone https://github.com/maslovw/serial_tcp_clients.git
 cd serial_tcp_clients
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[gui]"
+pip install -e . -e gui
 ```
 
 **Standalone Windows executable (no Python needed on the target machine):**
@@ -158,7 +165,7 @@ serial-tcp-gui ports.yaml      # load a specific config
 As a module (works without the console script on PATH):
 
 ```bash
-python -m serialtcp.gui ports.yaml
+python -m serialtcp_gui ports.yaml
 ```
 
 From a source venv on Windows, or the standalone build:

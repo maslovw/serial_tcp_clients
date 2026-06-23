@@ -17,25 +17,14 @@ dependencies = [
     "pyserial>=3.3",
 ]
 
-[project.optional-dependencies]
-# GUI also needs Tkinter, which ships with most CPython builds but on Linux may
-# require a system package (e.g. Debian/Ubuntu: `apt install python3-tk`).
-gui = [
-    "PyYAML>=5.1",
-]
-
 [tool.setuptools.dynamic]
 version = {attr = "serialtcp.__version__"}
 
-[tool.setuptools.package-data]
-"serialtcp.gui" = ["assets/*"]
-
 [tool.setuptools.packages.find]
-include = ["serialtcp*"]
+include = ["serialtcp", "serialtcp.*"]
 
 [project.scripts]
 serial-tcp-server = "serialtcp.tcp_server:parse_args"
-serial-tcp-gui = "serialtcp.gui.app:main"
 
 [project.urls]
 Homepage = "https://github.com/maslovw/serial_tcp_clients"

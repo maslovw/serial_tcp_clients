@@ -31,7 +31,7 @@ def _assets_dir():
     # otherwise they sit next to this module.
     base = getattr(sys, '_MEIPASS', None)
     if base:
-        return os.path.join(base, 'serialtcp', 'gui', 'assets')
+        return os.path.join(base, 'serialtcp_gui', 'assets')
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets')
 
 
@@ -483,7 +483,7 @@ class App:
 def main(argv=None):
     import argparse
     parser = argparse.ArgumentParser(
-        prog='python -m serialtcp.gui',
+        prog='python -m serialtcp_gui',
         description='Tkinter Port Manager for serial -> TCP mappings.')
     parser.add_argument('config', nargs='?', default=config_mod.default_config_path(),
                         help='YAML config file (default: ./%s)' % config_mod.DEFAULT_CONFIG_NAME)

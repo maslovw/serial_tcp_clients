@@ -3,7 +3,7 @@ tkinter-free ANSI parser. These run on every platform (incl. Windows)."""
 import re
 
 from serialtcp.service import PortConfig, PortService
-from serialtcp.gui.ansi import parse_ansi, clean
+from serialtcp_gui.ansi import parse_ansi, clean
 
 
 def _events(data, kind='rx'):
