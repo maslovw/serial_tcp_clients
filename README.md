@@ -92,8 +92,9 @@ console, settings, throughput and live log on the right.
 ![Port Manager GUI](docs/port-manager.png)
 
 For each mapping you can Start/Stop the TCP listener, watch live OUT/IN
-throughput and the connected-client count, read a colour-coded console, send
-data to the serial device from a console input line, and Add/Edit/Remove
+throughput, the connected-client count and the serial device's link state
+(a green/grey port chip), read a colour-coded console, send data to the serial
+device from a console input line, and Add/Edit/Remove
 mappings. The serial port opens when the first TCP client connects and closes
 when the last disconnects; if the device drops, the clients stay connected while
 the GUI shows a "reconnecting" banner and retries.
@@ -215,9 +216,12 @@ A ready-to-edit example lives in [`ports.example.yaml`](ports.example.yaml).
 
   or PuTTY (connection type *Raw* or *Telnet*, host `localhost`, port `5000`),
   or `nc localhost 5000`. Several clients can share one serial device at once.
-- **Console** — the live log renders ANSI colours and splits CR/CRLF/LF lines.
-  The input row sends what you type; the dropdown next to it picks the appended
-  line ending (`CRLF`/`LF`/`CR`/`none`), which is saved to the config.
+- **Console** — the live log timestamps each line `[HH:MM:SS:MSEC]`, renders
+  ANSI colours and splits CR/CRLF/LF lines; scroll back through history with the
+  scrollbar or mouse wheel. The header has **copy** (the selection, or the whole
+  console) and **clear** buttons. The input row sends what you type; the dropdown
+  next to it picks the appended line ending (`CRLF`/`LF`/`CR`/`none`), which is
+  saved to the config.
 - **Terminal as a client** — the serial port is normally open only while a TCP
   client is connected. Click **Connect** in the console input row to attach the
   GUI itself as a client (opening the serial port) so you can send and receive in
