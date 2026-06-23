@@ -229,12 +229,28 @@ class DetailPanel(tk.Frame):
         self._log_label.pack(side='right', padx=(0, 14))
         self._log_label.bind('<Button-1>', lambda _e: self._toggle_log(service))
         self._update_log_label(service)
+        self._clear_label = tk.Label(head, text='✕ clear', bg=c.con_bg, fg=c.con_head,
+                                     cursor='hand2', font=self.theme.ui(10, 600))
+        self._clear_label.pack(side='right', padx=(0, 14))
+        self._clear_label.bind('<Button-1>', lambda _e: self._clear_console())
+        self._copy_label = tk.Label(head, text='⧉ copy', bg=c.con_bg, fg=c.con_head,
+                                    cursor='hand2', font=self.theme.ui(10, 600))
+        self._copy_label.pack(side='right', padx=(0, 14))
+        self._copy_label.bind('<Button-1>', lambda _e: self._copy_console())
 
-        text = tk.Text(frame, bg=c.con_bg, fg=c.con_rx, height=11, bd=0,
+        body = tk.Frame(frame, bg=c.con_bg)
+        body.pack(fill='both', expand=True)
+        text = tk.Text(body, bg=c.con_bg, fg=c.con_rx, height=11, bd=0,
                        highlightthickness=0, wrap='char', font=self.theme.mono(11.5),
                        padx=15, pady=0, state='disabled', cursor='arrow',
                        spacing1=2, spacing3=2)
-        text.pack(fill='both', expand=True)
+        scrollbar = tk.Scrollbar(body, orient='vertical', command=text.yview,
+                                 troughcolor=c.con_bg, bg='#2a323f',
+                                 activebackground='#39424f', highlightthickness=0,
+                                 bd=0, relief='flat', width=12, elementborderwidth=0)
+        text.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side='right', fill='y')
+        text.pack(side='left', fill='both', expand=True)
         text.tag_configure('ts', foreground=c.con_ts)
         self._kind_color = {
             'conn': c.con_conn, 'rx': c.con_rx, 'tx': c.con_tx,
@@ -333,6 +349,29 @@ class DetailPanel(tk.Frame):
                 return
         self.actions.get('save', lambda: None)()
         self._update_log_label(service)
+
+    def _clear_console(self):
+        """Clear the console: drop the retained log and empty the widget."""
+        if self.service is not None:
+            self.service.clear_log()
+        if self._console is not None:
+            self._console.configure(state='normal')
+            self._console.delete('1.0', 'end')
+            self._console.configure(state='disabled')
+
+    def _copy_console(self):
+        """Copy the current selection to the clipboard, or the whole console."""
+        text = self._console
+        if text is None:
+            return
+        try:
+            content = text.get('sel.first', 'sel.last')
+        except tk.TclError:
+            content = text.get('1.0', 'end-1c')
+        if not content:
+            return
+        self.clipboard_clear()
+        self.clipboard_append(content)
 
     def _render_buffer(self, service):
         text = self._console

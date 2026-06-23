@@ -322,6 +322,11 @@ class PortService:
         with self._log_lock:
             return list(self.log_buffer)
 
+    def clear_log(self):
+        """Drop the retained console history (backs the GUI 'clear' action)."""
+        with self._log_lock:
+            self.log_buffer.clear()
+
     # ------------------------------------------------------------- logging
     @property
     def logging_to_file(self):
@@ -375,7 +380,9 @@ class PortService:
         return now.strftime('[%d.%m.%y %H:%M:%S:') + '{:03d}]'.format(now.microsecond // 1000)
 
     def _emit(self, kind, text):
-        ev = LogEvent(kind, text, time.strftime('%H:%M:%S'))
+        now = datetime.now()
+        ts = now.strftime('%H:%M:%S:') + '{:03d}'.format(now.microsecond // 1000)
+        ev = LogEvent(kind, text, ts)
         with self._log_lock:
             self.log_buffer.append(ev)
             if self._log_fh is not None:
