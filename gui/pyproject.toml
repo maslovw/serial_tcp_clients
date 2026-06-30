@@ -16,7 +16,7 @@ keywords = ["serial", "com", "port", "tcp", "gui", "tkinter", "port manager"]
 # Tkinter is a stdlib module (not a pip package); on Linux it may need a system
 # package, e.g. Debian/Ubuntu: `apt install python3-tk`.
 dependencies = [
-    "serial-tcp-clients>=2.2.3",
+    "serial-tcp-clients>=2.2.4",
     "PyYAML>=5.1",
 ]
 

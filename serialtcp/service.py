@@ -42,6 +42,12 @@ LINE_ENDING_BYTES = {'CRLF': b'\r\n', 'LF': b'\n', 'CR': b'\r', 'none': b''}
 # How often the serial layer retries a lost device (matches SerialPort.timeout).
 RECONNECT_INTERVAL = 2.0
 
+# Grace period to keep the serial port open after the last consumer leaves.
+# Back-to-back, short-lived TCP clients (e.g. two piped commands) then reuse
+# the same open handle instead of closing/reopening the port between them,
+# which churns the link and can reset the target via DTR/RTS toggling.
+SERIAL_LINGER = 3.0
+
 # Cap a partial (newline-less) console line so binary streams can't grow it
 # without bound before it is flushed to the log.
 _MAX_PARTIAL_LINE = 4096
@@ -116,6 +122,10 @@ class PortService:
         self.log_buffer = deque(maxlen=_LOG_HISTORY)
         self._log_lock = threading.Lock()
         self._log_fh = None      # open file handle when logging to disk
+
+        # Pending delayed serial close (linger grace period); guarded together.
+        self._linger_timer = None
+        self._linger_lock = threading.Lock()
 
     # ------------------------------------------------------------------ state
     @property
@@ -205,6 +215,7 @@ class PortService:
             return
         self._running = False
         self._local_client = False
+        self._cancel_linger()
         server, serial_port = self._server, self._serial
         try:
             if server:
@@ -225,6 +236,7 @@ class PortService:
         if not self._running or self._local_client:
             return
         self._local_client = True
+        self._cancel_linger()
         self._emit('conn', 'terminal connected')
         if self._serial:
             self._serial.ensure_open()
@@ -236,7 +248,40 @@ class PortService:
         self._local_client = False
         self._emit('conn', 'terminal disconnected')
         if self.client_count == 0 and self._serial:
-            self._serial.close()
+            self._schedule_serial_close()
+
+    # ----------------------------------------------------------- serial linger
+    def _schedule_serial_close(self):
+        """Close the serial port after SERIAL_LINGER if still idle by then.
+
+        Keeps the port open across the brief gap between two short-lived
+        clients so they reuse one open handle instead of churning the link.
+        """
+        with self._linger_lock:
+            self._cancel_linger_locked()
+            if not self._running:
+                return
+            self._linger_timer = threading.Timer(SERIAL_LINGER, self._linger_close)
+            self._linger_timer.daemon = True
+            self._linger_timer.start()
+
+    def _linger_close(self):
+        with self._linger_lock:
+            self._linger_timer = None
+            if not self._running or self.has_consumers:
+                return
+            serial_port = self._serial
+        if serial_port:           # close() can block on thread joins; not under lock
+            serial_port.close()
+
+    def _cancel_linger(self):
+        with self._linger_lock:
+            self._cancel_linger_locked()
+
+    def _cancel_linger_locked(self):
+        if self._linger_timer is not None:
+            self._linger_timer.cancel()
+            self._linger_timer = None
 
     def send_to_serial(self, data: bytes):
         """Transmit bytes to the serial device (used by the console input)."""
@@ -271,6 +316,7 @@ class PortService:
             self._server.send_to_all(data)
 
     def _on_client_connect(self, client):
+        self._cancel_linger()
         self._emit('conn', 'client {} connected ({} total)'.format(
             _addr(client.address), self.client_count))
         if self._serial:
@@ -281,7 +327,7 @@ class PortService:
         self._emit('conn', 'client {} disconnected ({} total)'.format(
             _addr(client.address), remaining))
         if remaining == 0 and not self._local_client and self._serial:
-            self._serial.close()
+            self._schedule_serial_close()
 
     def _on_serial_connect(self):
         self.reconnect_attempt = 0

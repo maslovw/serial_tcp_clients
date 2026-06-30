@@ -129,6 +129,53 @@ def test_local_terminal_client(pty_device):
         service.stop()
 
 
+def test_back_to_back_clients_keep_serial(pty_device):
+    """Two short-lived clients in quick succession reuse one open serial port.
+
+    Reproduces the drop seen when piping sequential commands (each opens its
+    own TCP connection): the linger grace period must keep COM open across the
+    gap so the port is never closed/reopened and no reconnect churn occurs.
+    """
+    _master_fd, _slave_fd, device = pty_device
+    events = []
+    lock = threading.Lock()
+
+    def on_event(service, ev):
+        with lock:
+            events.append(ev)
+
+    cfg = PortConfig(device=device, tcp_port=_free_tcp_port())
+    service = PortService(cfg, on_event=on_event)
+    service.start()
+    try:
+        first = socket.create_connection(('127.0.0.1', cfg.tcp_port), timeout=5)
+        assert _wait(lambda: service.serial_connected), 'serial did not open'
+
+        first.close()
+        assert _wait(lambda: service.client_count == 0)
+
+        # Reconnect well within the linger window.
+        second = socket.create_connection(('127.0.0.1', cfg.tcp_port), timeout=5)
+        assert _wait(lambda: service.client_count == 1)
+
+        # The port was never closed/reopened: it stays connected throughout.
+        for _ in range(20):
+            assert service.serial_connected, 'serial dropped between clients'
+            time.sleep(0.02)
+        second.close()
+    finally:
+        service.stop()
+
+    with lock:
+        kinds = [ev.kind for ev in events]
+        opens = [ev for ev in events
+                 if ev.kind == 'status' and 'connected' in ev.text]
+    assert 'retry' not in kinds, 'unexpected reconnect churn between clients'
+    # One open for the whole sequence: the port was reused, not reopened.
+    assert len(opens) == 1, 'serial reopened between clients: {}'.format(
+        [ev.text for ev in opens])
+
+
 def test_send_to_serial(pty_device):
     master_fd, _slave_fd, device = pty_device
     cfg = PortConfig(device=device, tcp_port=_free_tcp_port())

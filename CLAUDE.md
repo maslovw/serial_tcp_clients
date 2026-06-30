@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 TCP server that shares a serial console (COM port) over TCP connections. Multiple TCP clients connect to a single serial device through the server. The serial port opens when the first client connects and closes when the last disconnects, with automatic reconnection if the device is lost.
 
-**Packages (two, both v2.2.3):**
+**Packages (two, both v2.2.4):**
 - `serial-tcp-clients` — CLI + headless backend (`serialtcp/`), depends on `pyserial`.
 - `serial-tcp-clients-gui` — Tkinter GUI (`gui/serialtcp_gui/`, its own `pyproject.toml`),
   depends on `serial-tcp-clients` + `PyYAML` (and Tkinter).

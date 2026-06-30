@@ -6,4 +6,4 @@ shipped as the separate ``serial-tcp-clients-gui`` distribution.
 Run with ``python -m serialtcp_gui [config.yaml]``.
 """
 
-__version__ = '2.2.3'
+__version__ = '2.2.4'

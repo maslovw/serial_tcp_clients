@@ -31,6 +31,12 @@ class SerialPort():
         self.keep_active = keep_active
         self.reconnect_thread = None
         self._close_set = False
+        # Bumped on every successful open. Each receive thread captures the
+        # epoch it was started for; a thread whose epoch is stale (a newer
+        # open has superseded it) must not touch the port on exit, otherwise a
+        # dying receiver from a just-closed connection can close the freshly
+        # reopened port and trigger a spurious reconnect.
+        self._open_epoch = 0
 
         self.on_connect = on_connect
         self.on_disconnect = on_disconnect
@@ -62,7 +68,9 @@ class SerialPort():
             self.is_connected = self.serial.is_open
             if self.is_connected:
                 self.logger.debug("opened port {} at {} baud".format(self.serial.port, self.serial.baudrate))
-                self.receive_thread = threading.Thread(target=self.__async_receiver, daemon=True)
+                self._open_epoch += 1
+                epoch = self._open_epoch
+                self.receive_thread = threading.Thread(target=self.__async_receiver, args=(epoch,), daemon=True)
                 self.receive_thread.start()
             else:
                 if self.keep_active:
@@ -101,7 +109,7 @@ class SerialPort():
         self.lastbyte = data[-1]
         self._on_received(data)
 
-    def __async_receiver(self):
+    def __async_receiver(self, epoch):
         self.logger.debug("receiver started")
         self.on_connect()
         while self.serial.is_open and self.is_connected:
@@ -115,6 +123,10 @@ class SerialPort():
                 if not self._close_set:
                     self.logger.error("rx fail: {}".format(e))
                 break
+        # A newer open has taken over (epoch advanced): leave the port to it.
+        if epoch != self._open_epoch:
+            self.logger.debug("receiver stopped (superseded)")
+            return
         if not self._close_set:
             if self.keep_active:
                 with self.lock:
