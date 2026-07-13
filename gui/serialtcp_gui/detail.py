@@ -28,6 +28,7 @@ class DetailPanel(tk.Frame):
         self._build_key = None          # (id(service), status) currently rendered
         self._dyn = {}                  # dynamic label refs
         self._console = None            # tk.Text or None
+        self._view_mode = 'ascii'       # 'ascii' | 'hex16' | 'hex32'
         self._build_empty()
 
     # ------------------------------------------------------------- public API
@@ -237,6 +238,11 @@ class DetailPanel(tk.Frame):
                                     cursor='hand2', font=self.theme.ui(10, 600))
         self._copy_label.pack(side='right', padx=(0, 14))
         self._copy_label.bind('<Button-1>', lambda _e: self._copy_console())
+        self._view_label = tk.Label(head, bg=c.con_bg, cursor='hand2',
+                                    font=self.theme.ui(10, 600))
+        self._view_label.pack(side='right', padx=(0, 14))
+        self._view_label.bind('<Button-1>', lambda _e: self._cycle_view())
+        self._update_view_label()
 
         body = tk.Frame(frame, bg=c.con_bg)
         body.pack(fill='both', expand=True)
@@ -373,6 +379,21 @@ class DetailPanel(tk.Frame):
         self.clipboard_clear()
         self.clipboard_append(content)
 
+    # ------------------------------------------------------------ view mode
+    _VIEW_ORDER = ('ascii', 'hex16', 'hex32')
+    _VIEW_LABELS = {'ascii': '⇄ ascii', 'hex16': '⇄ hex ×16', 'hex32': '⇄ hex ×32'}
+
+    def _update_view_label(self):
+        self._view_label.configure(text=self._VIEW_LABELS[self._view_mode],
+                                   fg=self.theme.colors.con_head)
+
+    def _cycle_view(self):
+        i = self._VIEW_ORDER.index(self._view_mode)
+        self._view_mode = self._VIEW_ORDER[(i + 1) % len(self._VIEW_ORDER)]
+        self._update_view_label()
+        if self._console is not None and self.service is not None:
+            self._render_buffer(self.service)
+
     def _render_buffer(self, service):
         text = self._console
         text.configure(state='normal')
@@ -401,12 +422,37 @@ class DetailPanel(tk.Frame):
         return tag
 
     def _insert_event(self, text, event):
+        if self._view_mode != 'ascii' and event.kind in ('rx', 'tx'):
+            self._insert_hex_event(text, event)
+            return
         text.insert('end', '[{}] '.format(event.ts), 'ts')
         default = self._kind_color.get(event.kind, self.theme.colors.con_rx)
         for chunk, color in parse_ansi(event.text, default):
             chunk = clean(chunk)
             if chunk:
                 text.insert('end', chunk, self._color_tag(text, color))
+        text.insert('end', '\n')
+
+    def _insert_hex_event(self, text, event):
+        """Render one rx/tx line as hex bytes, wrapped at 16 or 32 per row.
+
+        The actual received bytes (including the line terminator, e.g. ``0d 0a``)
+        are shown; continuation rows are indented to align under the first byte.
+        """
+        prefix = '[{}] '.format(event.ts)
+        text.insert('end', prefix, 'ts')
+        raw = event.raw if event.raw is not None else event.text.encode('utf-8', 'replace')
+        color = self._kind_color.get(event.kind, self.theme.colors.con_rx)
+        tag = self._color_tag(text, color)
+        width = 16 if self._view_mode == 'hex16' else 32
+        if not raw:
+            text.insert('end', '\n')
+            return
+        for i in range(0, len(raw), width):
+            if i:
+                text.insert('end', '\n' + ' ' * len(prefix), 'ts')
+            row = raw[i:i + width]
+            text.insert('end', ' '.join('{:02x}'.format(b) for b in row), tag)
         text.insert('end', '\n')
 
     # -------------------------------------------------------------- dynamic

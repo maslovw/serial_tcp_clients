@@ -11,6 +11,7 @@ fires from background I/O threads. The GUI is expected to marshal those events
 onto the Tk main loop (queue + ``after``).
 """
 
+import re
 import time
 import logging
 import threading
@@ -28,7 +29,13 @@ from serialtcp.serial_port import SerialPort
 #   tx     - data sent to the serial device
 #   status - lifecycle notices (listening, serial connected, stopped)
 #   retry  - reconnect attempts while the device is lost
-LogEvent = namedtuple('LogEvent', 'kind text ts')
+# ``raw`` holds the exact bytes received/sent (with the line terminator) for
+# rx/tx lines so the GUI can render a faithful hex view; it is None for the
+# synthetic status/conn/retry notices.
+LogEvent = namedtuple('LogEvent', 'kind text ts raw', defaults=(None,))
+
+# Matches any of the line terminators the console splits on.
+_LINE_TERMINATORS = re.compile(b'\r\n|\r|\n')
 
 STATUS_STOPPED = 'stopped'
 STATUS_RUNNING = 'running'
@@ -349,17 +356,18 @@ class PortService:
         into rows instead of one endless line.
         """
         buf = self._line_bufs.get(kind, b'') + bytes(data)
-        buf = buf.replace(b'\r\n', b'\n').replace(b'\r', b'\n')
-        parts = buf.split(b'\n')
-        rest = parts.pop()
-        for line in parts:
+        pos = 0
+        for m in _LINE_TERMINATORS.finditer(buf):
+            line = buf[pos:m.start()]
             text = line.decode('utf-8', 'replace')
             if text:
-                self._emit(kind, text)
+                self._emit(kind, text, raw=buf[pos:m.end()])
+            pos = m.end()
+        rest = buf[pos:]
         if len(rest) > _MAX_PARTIAL_LINE:
             text = rest.decode('utf-8', 'replace')
             if text:
-                self._emit(kind, text)
+                self._emit(kind, text, raw=rest)
             rest = b''
         self._line_bufs[kind] = rest
 
@@ -425,10 +433,10 @@ class PortService:
         now = datetime.now()
         return now.strftime('[%d.%m.%y %H:%M:%S:') + '{:03d}]'.format(now.microsecond // 1000)
 
-    def _emit(self, kind, text):
+    def _emit(self, kind, text, raw=None):
         now = datetime.now()
         ts = now.strftime('%H:%M:%S:') + '{:03d}'.format(now.microsecond // 1000)
-        ev = LogEvent(kind, text, ts)
+        ev = LogEvent(kind, text, ts, raw)
         with self._log_lock:
             self.log_buffer.append(ev)
             if self._log_fh is not None:

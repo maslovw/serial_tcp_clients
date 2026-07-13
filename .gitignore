@@ -6,6 +6,9 @@ __pycache__
 *.egg-info/
 .log.txt
 
+# secrets / local env (PyPI token, etc.) — never commit
+.env
+
 # executables / build output (build them with deploy/build*.bat)
 *.exe
 

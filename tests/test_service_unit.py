@@ -18,6 +18,14 @@ def test_line_split_handles_cr_crlf_lf():
     assert _events(b'a\r\nb\rc\nd\n') == ['a', 'b', 'c', 'd']
 
 
+def test_raw_bytes_include_terminator():
+    seen = []
+    svc = PortService(PortConfig(device='X', tcp_port=1),
+                      on_event=lambda s, e: seen.append((e.text, e.raw)))
+    svc._buffer_lines('rx', b'a\r\nb\nc\r')
+    assert seen == [('a', b'a\r\n'), ('b', b'b\n'), ('c', b'c\r')]
+
+
 def test_line_split_buffers_partial():
     seen = []
     svc = PortService(PortConfig(device='X', tcp_port=1),
