@@ -4,6 +4,7 @@ These import serialtcp_gui.config / .util only, which do not pull in tkinter,
 so they run anywhere pytest does.
 """
 import os
+import logging
 import tempfile
 
 from serialtcp.service import PortConfig
@@ -59,6 +60,83 @@ def test_load_skips_incomplete_entries():
     finally:
         os.remove(path)
     assert [c.device for c in loaded] == ['COM4']
+
+
+def test_log_settings_default_when_absent():
+    path = tempfile.mktemp(suffix='.yaml')
+    with open(path, 'w') as fh:
+        fh.write('ports:\n  - device: COM4\n    tcp_port: 5001\n')
+    try:
+        settings = config_mod.load_log_settings(path)
+    finally:
+        os.remove(path)
+    assert settings.file == ''
+    assert settings.level == 'WARNING'
+
+
+def test_log_settings_parsed():
+    path = tempfile.mktemp(suffix='.yaml')
+    with open(path, 'w') as fh:
+        fh.write('logging:\n  file: gui.log\n  level: INFO\nports: []\n')
+    try:
+        settings = config_mod.load_log_settings(path)
+    finally:
+        os.remove(path)
+    assert settings.file == 'gui.log'
+    assert settings.level == 'INFO'
+
+
+def test_save_preserves_log_settings():
+    cfgs = [PortConfig(device='COM3', tcp_port=5000)]
+    path = tempfile.mktemp(suffix='.yaml')
+    try:
+        config_mod.save_configs(path, cfgs,
+                                config_mod.LogSettings(file='gui.log', level='DEBUG'))
+        settings = config_mod.load_log_settings(path)
+        loaded = config_mod.load_configs(path)
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
+    assert settings.file == 'gui.log'
+    assert settings.level == 'DEBUG'
+    assert [c.device for c in loaded] == ['COM3']
+
+
+def test_configure_logging_writes_file():
+    path = tempfile.mktemp(suffix='.log')
+    root = logging.getLogger()
+    before = list(root.handlers)
+    before_level = root.level
+    try:
+        config_mod.configure_logging(config_mod.LogSettings(file=path, level='DEBUG'))
+        assert root.level == logging.DEBUG
+        logging.getLogger('Port 5000').debug('hello file handler')
+        for h in root.handlers:
+            h.flush()
+        with open(path) as fh:
+            content = fh.read()
+        assert 'hello file handler' in content
+    finally:
+        for h in list(root.handlers):
+            if h not in before:
+                root.removeHandler(h)
+                h.close()
+        root.setLevel(before_level)
+        if os.path.exists(path):
+            os.remove(path)
+
+
+def test_configure_logging_no_file_sets_level_only():
+    root = logging.getLogger()
+    before = list(root.handlers)
+    before_level = root.level
+    try:
+        handler = config_mod.configure_logging(config_mod.LogSettings(level='ERROR'))
+        assert handler is None
+        assert root.level == logging.ERROR
+        assert list(root.handlers) == before
+    finally:
+        root.setLevel(before_level)
 
 
 def test_format_bytes():

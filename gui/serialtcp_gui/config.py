@@ -1,7 +1,10 @@
-"""Load and save the YAML list of serial -> TCP port mappings.
+"""Load and save the YAML config for the Port Manager GUI.
 
 Config shape::
 
+    logging:                     # optional; configures the Python logger
+      file: serialtcp_gui.log    # log file path ('' or absent = no file log)
+      level: INFO                # DEBUG | INFO | WARNING | ERROR | CRITICAL
     ports:
       - device: COM3
         tcp_port: 5000
@@ -13,23 +16,53 @@ Config shape::
 """
 
 import os
+import logging
+from logging.handlers import RotatingFileHandler
+from dataclasses import dataclass, asdict
+
 import yaml
 
 from serialtcp.service import PortConfig
 
 DEFAULT_CONFIG_NAME = 'serialtcp_ports.yaml'
 
+# Same record format the CLI uses, so file logs read consistently.
+_LOG_FMT = '[%(asctime)s:%(msecs)03d]:%(name)s:%(levelname)s:%(message)s'
+_LOG_DATEFMT = '%d.%m.%y %H:%M:%S'
+# Rotation keeps a chatty DEBUG log from growing without bound.
+_LOG_MAX_BYTES = 1_000_000
+_LOG_BACKUPS = 3
+
+
+@dataclass
+class LogSettings:
+    """Python-logger config for the GUI process (top-level ``logging`` key)."""
+    file: str = ''            # path to the log file (empty = no file logging)
+    level: str = 'WARNING'    # DEBUG | INFO | WARNING | ERROR | CRITICAL
+
+    def to_dict(self):
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data):
+        known = {f for f in cls.__dataclass_fields__}
+        return cls(**{k: v for k, v in data.items() if k in known})
+
 
 def default_config_path():
     return os.path.join(os.getcwd(), DEFAULT_CONFIG_NAME)
 
 
+def _read_yaml(path):
+    if not path or not os.path.exists(path):
+        return None
+    with open(path, 'r') as fh:
+        return yaml.safe_load(fh)
+
+
 def load_configs(path):
     """Return a list of PortConfig from ``path`` (empty list if missing)."""
-    if not path or not os.path.exists(path):
-        return []
-    with open(path, 'r') as fh:
-        data = yaml.safe_load(fh)
+    data = _read_yaml(path)
     if not data:
         return []
     if isinstance(data, dict):
@@ -45,8 +78,43 @@ def load_configs(path):
     return configs
 
 
-def save_configs(path, configs):
-    """Write the mappings back to ``path`` as YAML."""
-    data = {'ports': [c.to_dict() for c in configs]}
+def load_log_settings(path):
+    """Return LogSettings from the top-level ``logging`` key (defaults if absent)."""
+    data = _read_yaml(path)
+    if isinstance(data, dict) and isinstance(data.get('logging'), dict):
+        return LogSettings.from_dict(data['logging'])
+    return LogSettings()
+
+
+def save_configs(path, configs, log_settings=None):
+    """Write the mappings (and, if given, logging settings) back to ``path``."""
+    data = {}
+    if log_settings is not None:
+        data['logging'] = log_settings.to_dict()
+    data['ports'] = [c.to_dict() for c in configs]
     with open(path, 'w') as fh:
         yaml.safe_dump(data, fh, sort_keys=False, default_flow_style=False)
+
+
+def configure_logging(settings):
+    """Apply ``settings`` to the root logger.
+
+    Sets the level and, when ``settings.file`` is given, adds a rotating file
+    handler so the GUI's Python logger is captured on disk. Returns the handler
+    that was installed, or None. An unopenable path is logged and skipped rather
+    than crashing the app.
+    """
+    root = logging.getLogger()
+    root.setLevel(getattr(logging, str(settings.level).upper(), logging.WARNING))
+    if not settings.file:
+        return None
+    try:
+        handler = RotatingFileHandler(
+            settings.file, maxBytes=_LOG_MAX_BYTES, backupCount=_LOG_BACKUPS,
+            encoding='utf-8')
+    except OSError as exc:
+        root.warning('cannot open log file %s: %s', settings.file, exc)
+        return None
+    handler.setFormatter(logging.Formatter(_LOG_FMT, datefmt=_LOG_DATEFMT))
+    root.addHandler(handler)
+    return handler

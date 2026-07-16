@@ -92,8 +92,9 @@ def _apply_window_icon(root):
 
 
 class App:
-    def __init__(self, config_path):
+    def __init__(self, config_path, log_settings=None):
         self.config_path = config_path
+        self.log_settings = log_settings or config_mod.LogSettings()
         _set_taskbar_app_id()
         self.root = tk.Tk()
         self.root.title('Serial TCP Server v{}'.format(__version__))
@@ -468,7 +469,8 @@ class App:
     # --------------------------------------------------------------- close
     def _save(self):
         try:
-            config_mod.save_configs(self.config_path, [s.config for s in self.services])
+            config_mod.save_configs(self.config_path, [s.config for s in self.services],
+                                    self.log_settings)
         except OSError as exc:
             messagebox.showerror('Save failed', 'Could not write {}:\n{}'.format(
                 self.config_path, exc))
@@ -488,7 +490,9 @@ def main(argv=None):
     parser.add_argument('config', nargs='?', default=config_mod.default_config_path(),
                         help='YAML config file (default: ./%s)' % config_mod.DEFAULT_CONFIG_NAME)
     args = parser.parse_args(argv)
-    App(args.config).run()
+    log_settings = config_mod.load_log_settings(args.config)
+    config_mod.configure_logging(log_settings)
+    App(args.config, log_settings).run()
 
 
 if __name__ == '__main__':

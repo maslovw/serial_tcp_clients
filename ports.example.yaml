@@ -6,6 +6,13 @@
 # server reconnects.
 #
 # Required per entry: device, tcp_port. Everything else has sensible defaults.
+
+# Optional: capture the GUI's own Python logger to a file. Omit this block to
+# keep the default (console only, WARNING level).
+logging:
+  file: serialtcp_gui.log    # log file path ('' or absent = no file log)
+  level: INFO                # DEBUG | INFO | WARNING | ERROR | CRITICAL
+
 ports:
   - name: Console            # optional label shown on the card (defaults to device)
     device: COM3             # e.g. COM3 on Windows, /dev/ttyUSB0 on Linux
