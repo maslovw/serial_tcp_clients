@@ -49,7 +49,7 @@ class SerialServer():
             except Exception as e:
                 if self.__stop:
                     return
-                self.logger.error("accept client failed: {}".format(e))
+                self.logger.exception("accept client failed: {}".format(e))
 
     def __start_accept_thread(self):
         # configure server socket

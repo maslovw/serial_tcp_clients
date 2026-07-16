@@ -64,7 +64,7 @@ class SerialPort():
                 if not self.serial.is_open:
                     if  throw:
                         raise
-                    self.logger.error("open port failed: {}".format(e))
+                    self.logger.exception("open port failed: {}".format(e))
             self.is_connected = self.serial.is_open
             if self.is_connected:
                 self.logger.debug("opened port {} at {} baud".format(self.serial.port, self.serial.baudrate))
@@ -86,7 +86,7 @@ class SerialPort():
             try:
                 self.serial.close()
             except Exception as e:
-                self.logger.error("close fail: {}".format(e))
+                self.logger.exception("close fail: {}".format(e))
         self.is_connected = False
         if was_connected:
             self.on_disconnect()
@@ -121,7 +121,7 @@ class SerialPort():
                     self.on_received(data)
             except Exception as e:
                 if not self._close_set:
-                    self.logger.error("rx fail: {}".format(e))
+                    self.logger.exception("rx fail: {}".format(e))
                 break
         # A newer open has taken over (epoch advanced): leave the port to it.
         if epoch != self._open_epoch:

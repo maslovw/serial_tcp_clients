@@ -72,7 +72,7 @@ class SerialClient():
         try:
             self.socket.sendall(data)
         except Exception as e:
-            self.logger.error("send failed: {}".format(e))
+            self.logger.exception("send failed: {}".format(e))
             self.err_cnt += 1
 
     def stop(self):
@@ -97,7 +97,7 @@ class SerialClient():
             except socket.timeout:
                 continue
             except Exception as e:
-                self.logger.error("receive failed: {}".format(e))
+                self.logger.exception("receive failed: {}".format(e))
                 self.err_cnt += 1
             if self.err_cnt > self.MAX_ERROR:
                 self.logger.warning("error count > {}".format(self.MAX_ERROR))
