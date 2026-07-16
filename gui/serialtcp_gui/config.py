@@ -17,6 +17,7 @@ Config shape::
 
 import os
 import logging
+import threading
 from logging.handlers import RotatingFileHandler
 from dataclasses import dataclass, asdict
 
@@ -118,3 +119,23 @@ def configure_logging(settings):
     handler.setFormatter(logging.Formatter(_LOG_FMT, datefmt=_LOG_DATEFMT))
     root.addHandler(handler)
     return handler
+
+
+def _thread_excepthook(args):
+    """Route an uncaught exception from a background thread through logging.
+
+    Without this, Python's default hook prints the traceback to stderr only, so
+    it never reaches the configured file handler. SystemExit is ignored to match
+    the default hook.
+    """
+    if issubclass(args.exc_type, SystemExit):
+        return
+    name = args.thread.name if args.thread is not None else 'unknown'
+    logging.getLogger('thread').error(
+        'uncaught exception in thread %s', name,
+        exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
+
+
+def install_thread_excepthook():
+    """Install the logging-based ``threading.excepthook`` (process-wide)."""
+    threading.excepthook = _thread_excepthook

@@ -6,6 +6,7 @@ so they run anywhere pytest does.
 import os
 import logging
 import tempfile
+import threading
 
 from serialtcp.service import PortConfig
 from serialtcp_gui import config as config_mod
@@ -137,6 +138,36 @@ def test_configure_logging_no_file_sets_level_only():
         assert list(root.handlers) == before
     finally:
         root.setLevel(before_level)
+
+
+def test_thread_excepthook_logs_uncaught():
+    path = tempfile.mktemp(suffix='.log')
+    root = logging.getLogger()
+    before = list(root.handlers)
+    before_level = root.level
+    saved_hook = threading.excepthook
+    try:
+        config_mod.configure_logging(config_mod.LogSettings(file=path, level='DEBUG'))
+        config_mod.install_thread_excepthook()
+        t = threading.Thread(target=lambda: (_ for _ in ()).throw(ValueError('boom')),
+                             name='worker-1')
+        t.start()
+        t.join()
+        for h in root.handlers:
+            h.flush()
+        content = open(path).read()
+        assert 'uncaught exception in thread worker-1' in content
+        assert 'ValueError: boom' in content
+        assert 'Traceback (most recent call last)' in content
+    finally:
+        threading.excepthook = saved_hook
+        for h in list(root.handlers):
+            if h not in before:
+                root.removeHandler(h)
+                h.close()
+        root.setLevel(before_level)
+        if os.path.exists(path):
+            os.remove(path)
 
 
 def test_format_bytes():

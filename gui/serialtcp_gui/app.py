@@ -492,6 +492,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     log_settings = config_mod.load_log_settings(args.config)
     config_mod.configure_logging(log_settings)
+    config_mod.install_thread_excepthook()
     App(args.config, log_settings).run()
 
 
