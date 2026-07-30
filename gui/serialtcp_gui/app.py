@@ -7,7 +7,10 @@ I/O threads report activity through a queue that is drained on the Tk main loop
 
 import os
 import sys
+import time
 import queue
+import logging
+import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -25,6 +28,14 @@ from serialtcp.service import PortService
 _TICK_MS = 200
 _REFRESH_EVERY = 5   # ticks between stat refreshes (5 * 200ms = 1s)
 _COLLAPSED_WIDTH = 358   # window width when the detail panel is hidden
+
+# How long an off-thread caller (the REST API) waits for the Tk main loop to run
+# its request. Generous: the loop only stalls while a modal dialog is being
+# dragged, but a wedged loop must not hang the HTTP worker forever.
+_MAIN_CALL_TIMEOUT = 5.0
+
+_log = logging.getLogger(__name__)
+
 
 def _assets_dir():
     # In a PyInstaller bundle data files are extracted under sys._MEIPASS;
@@ -92,9 +103,11 @@ def _apply_window_icon(root):
 
 
 class App:
-    def __init__(self, config_path, log_settings=None):
+    def __init__(self, config_path, log_settings=None, api_settings=None):
         self.config_path = config_path
         self.log_settings = log_settings or config_mod.LogSettings()
+        self.api_settings = api_settings or config_mod.ApiSettings()
+        self.started_at = time.time()
         _set_taskbar_app_id()
         self.root = tk.Tk()
         self.root.title('Serial TCP Server v{}'.format(__version__))
@@ -104,6 +117,8 @@ class App:
 
         self.theme = Theme()
         self.events = queue.Queue()
+        self.calls = queue.Queue()      # work handed to the main loop from other threads
+        self.api_server = None
         self.services = []
         self.cards = []
         self.selected = None
@@ -116,12 +131,18 @@ class App:
         self._build_body()
 
         self._load()
+        self._start_api()
         self.root.protocol('WM_DELETE_WINDOW', self._on_close)
         self.root.after(_TICK_MS, self._tick)
 
     # --------------------------------------------------------------- run
     def run(self):
         self.root.mainloop()
+
+    @property
+    def uptime(self):
+        """Seconds since the window was created."""
+        return time.time() - self.started_at
 
     # ------------------------------------------------------------ layout
     def _build_appbar(self):
@@ -330,14 +351,12 @@ class App:
                 service.config.label, service.config.tcp_port, exc)
 
     def _start_one(self, service):
-        ok, err = self._try_start(service)
+        ok, err = self.start_service(service)
         if not ok:
             messagebox.showerror('Start failed', err)
-        self._refresh()
 
     def _stop_one(self, service):
-        service.stop()
-        self._refresh()
+        self.stop_service(service)
 
     def _start_all(self):
         errors = []
@@ -367,6 +386,57 @@ class App:
         cfg = open_dialog(self.root, self.theme, others, config=service.config)
         if cfg is None:
             return
+        self.update_port_config(service, cfg)
+        self._select(service)
+
+    def _remove_port(self, service):
+        if not messagebox.askyesno(
+                'Remove', 'Remove mapping {} → :{}?'.format(
+                    service.config.label, service.config.tcp_port)):
+            return
+        self.remove_port_config(service)
+
+    # -------------------------------------------------- control surface (API)
+    # These run on the Tk main loop and are what the REST interface (api.py)
+    # drives; the GUI handlers above are thin wrappers around the same calls.
+    def call_on_main(self, fn, timeout=_MAIN_CALL_TIMEOUT):
+        """Run ``fn()`` on the Tk main loop and return its result.
+
+        Called directly when already on the main thread; otherwise the call is
+        queued for :meth:`_tick` and the caller blocks until it has run.
+        Re-raises whatever ``fn`` raised, or TimeoutError if the main loop did
+        not pick the call up within ``timeout`` seconds.
+        """
+        if threading.current_thread() is threading.main_thread():
+            return fn()
+
+        done = threading.Event()
+        box = {}
+
+        def runner():
+            try:
+                box['value'] = fn()
+            except BaseException as exc:      # forwarded to the caller below
+                box['error'] = exc
+            finally:
+                done.set()
+
+        self.calls.put(runner)
+        if not done.wait(timeout):
+            raise TimeoutError('main loop did not run the call within {}s'.format(timeout))
+        if 'error' in box:
+            raise box['error']
+        return box['value']
+
+    def add_port_config(self, cfg):
+        """Add a mapping (stopped), save the config and return its PortService."""
+        service = self._add_service(cfg, select=False)
+        self._save()
+        self._refresh()
+        return service
+
+    def update_port_config(self, service, cfg):
+        """Swap a mapping's config, restarting it if it was running, and save."""
         was_running = service.running
         if was_running:
             service.stop()
@@ -381,15 +451,13 @@ class App:
             new_card.pack(fill='x', pady=(0, 10), before=self._add_footer)
             self._bind_sidebar_wheel(new_card)
             self.cards.append(new_card)
-        self._select(service)
+        if self.selected is service:
+            self.detail.show(service)
         self._save()
         self._refresh()
 
-    def _remove_port(self, service):
-        if not messagebox.askyesno(
-                'Remove', 'Remove mapping {} → :{}?'.format(
-                    service.config.label, service.config.tcp_port)):
-            return
+    def remove_port_config(self, service):
+        """Stop and drop a mapping, then save the config."""
         if service.running:
             service.stop()
         card = self._card_for(service)
@@ -406,6 +474,16 @@ class App:
         self._save()
         self._refresh()
 
+    def start_service(self, service):
+        """Start one mapping. Returns ``(ok, error_message)``."""
+        ok, err = self._try_start(service)
+        self._refresh()
+        return ok, err
+
+    def stop_service(self, service):
+        service.stop()
+        self._refresh()
+
     def _open_settings(self):
         menu = tk.Menu(self.root, tearoff=0)
         menu.add_command(label='Save configuration', command=self._save)
@@ -414,6 +492,8 @@ class App:
         menu.add_command(label='About', command=self._open_about)
         menu.add_separator()
         menu.add_command(label='Config: {}'.format(self.config_path), state='disabled')
+        menu.add_command(label='API: {}'.format(
+            self.api_settings.url + '/docs' if self.api_server else 'off'), state='disabled')
         try:
             x = self.root.winfo_pointerx()
             y = self.root.winfo_pointery()
@@ -441,6 +521,14 @@ class App:
         self.events.put((service, event))
 
     def _tick(self):
+        # Work handed over by other threads (REST API) runs first, so a request
+        # that changes a mapping is reflected by the refresh below.
+        try:
+            while True:
+                self.calls.get_nowait()()
+        except queue.Empty:
+            pass
+
         try:
             while True:
                 service, event = self.events.get_nowait()
@@ -466,16 +554,50 @@ class App:
         self._summary.configure(text='{} mapping{} · {} client{}'.format(
             n, '' if n == 1 else 's', clients, '' if clients == 1 else 's'))
 
+    # ----------------------------------------------------------- REST API
+    def _start_api(self):
+        """Start the REST control interface if enabled and installed.
+
+        Failures are reported but never fatal: the GUI is fully usable without
+        the API.
+        """
+        if not self.api_settings.enabled:
+            _log.info('REST API disabled in the configuration')
+            return
+        try:
+            from .api import ApiServer, GuiController
+        except ImportError as exc:
+            _log.warning('REST API not started (%s); install it with: '
+                         'pip install "serial-tcp-clients-gui[api]"', exc)
+            return
+        server = ApiServer(GuiController(self), self.api_settings)
+        try:
+            server.start()
+        except Exception as exc:
+            _log.error('REST API could not start on %s:%s: %s',
+                       self.api_settings.host, self.api_settings.port, exc)
+            messagebox.showwarning(
+                'REST API', 'The control API could not start on {}:{}:\n\n{}'.format(
+                    self.api_settings.host, self.api_settings.port, exc))
+            return
+        self.api_server = server
+
+    def _stop_api(self):
+        if self.api_server is not None:
+            self.api_server.stop()
+            self.api_server = None
+
     # --------------------------------------------------------------- close
     def _save(self):
         try:
             config_mod.save_configs(self.config_path, [s.config for s in self.services],
-                                    self.log_settings)
+                                    self.log_settings, self.api_settings)
         except OSError as exc:
             messagebox.showerror('Save failed', 'Could not write {}:\n{}'.format(
                 self.config_path, exc))
 
     def _on_close(self):
+        self._stop_api()
         for service in self.services:
             service.stop()
         self._save()
@@ -493,7 +615,7 @@ def main(argv=None):
     log_settings = config_mod.load_log_settings(args.config)
     config_mod.configure_logging(log_settings)
     config_mod.install_thread_excepthook()
-    App(args.config, log_settings).run()
+    App(args.config, log_settings, config_mod.load_api_settings(args.config)).run()
 
 
 if __name__ == '__main__':

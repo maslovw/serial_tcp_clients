@@ -148,10 +148,11 @@ pip install -e . -e gui
 deploy\build-gui.bat
 ```
 
-This uses PyInstaller to produce a single windowed binary `serial-tcp-gui.exe`
-in the repository root. It builds in a throwaway virtualenv, so it does not
-touch your working `.venv`. Pass an explicit interpreter if `python` is not on
-your PATH: `deploy\build-gui.bat C:\Python310\python.exe`.
+This uses PyInstaller to produce the windowed binary `serial-tcp-gui.exe` and the
+console client `serial-tcp-ctl.exe` in the repository root. It builds in a
+throwaway virtualenv, so it does not touch your working `.venv`. Pass an explicit
+interpreter if `python` is not on your PATH:
+`deploy\build-gui.bat C:\Python310\python.exe`.
 
 ### Start / run
 
@@ -206,6 +207,9 @@ console is not exposed on the network. Set `allow_remote: true` (or tick
 **Allow remote connections** in the Add/Edit dialog) to bind `0.0.0.0` and accept
 connections from other machines.
 
+The same file also holds the optional `logging:` block (the app's own Python
+logger) and the `api:` block ([REST control API](#rest-control-api)).
+
 A ready-to-edit example lives in [`ports.example.yaml`](ports.example.yaml).
 
 ### Using it
@@ -237,3 +241,143 @@ A ready-to-edit example lives in [`ports.example.yaml`](ports.example.yaml).
 - **Logging** — click **log** in the console header (or set `log_file` in the
   config / dialog) to record all serial activity to a file. Each line is stamped
   `[dd.mm.YY HH:MM:SS:MSEC]`.
+
+### REST control API
+
+The Port Manager can serve a small **HTTP/JSON API** (FastAPI + uvicorn) so
+scripts, CI jobs and monitoring tools can check that the app is healthy, read its
+configuration and the live state of every mapping, and add, configure, start or
+stop mappings without touching the window. Everything the API changes is applied
+to the running app and saved back to the YAML config, exactly like the equivalent
+click in the GUI.
+
+**Install** — the API ships as an extra, so the plain GUI install stays small:
+
+```bash
+pip install "serial-tcp-clients-gui[api]"
+```
+
+Without those packages the GUI runs as before and logs that the API was not
+started. The standalone Windows build (`deploy\build-gui.bat`) always includes it.
+
+**Configure** — the top-level `api:` block of the config file:
+
+```yaml
+api:
+  enabled: true        # false = do not start the HTTP server
+  host: 127.0.0.1      # 0.0.0.0 exposes it on the network
+  port: 410            # HTTP listen port (default)
+```
+
+Defaults are `enabled: true`, `host: 127.0.0.1`, `port: 410`, so out of the box
+the API answers on <http://localhost:410> and is reachable only from the machine
+running the GUI. The settings menu (gear icon) shows the URL the API is serving,
+or `off`.
+
+> **Note** — on Linux/macOS ports below 1024 are privileged: either run the app
+> with the right privileges or pick a higher `port`. Windows has no such limit.
+> The API has **no authentication**; only set `host: 0.0.0.0` on a trusted
+> network, and remember it can open serial ports on the machine.
+
+**Documentation** — the API documents itself: Swagger UI at
+<http://localhost:410/docs>, ReDoc at `/redoc`, the OpenAPI schema at
+`/openapi.json`.
+
+| Method + path | Does |
+|---|---|
+| `GET /health` | App health: `ok` (or `degraded` while a started mapping lost its device), version, uptime, config path, client count and how many mappings are running / reconnecting / stopped |
+| `GET /config` | Full configuration: config file path, logger settings, API settings and every mapping |
+| `GET /ports` | Live state of every mapping |
+| `GET /ports/{tcp_port}` | Live state of one mapping |
+| `POST /ports` | Add a mapping (created stopped) |
+| `PATCH /ports/{tcp_port}` | Change a mapping; only the fields sent are applied, and a running mapping is restarted |
+| `DELETE /ports/{tcp_port}` | Stop and remove a mapping |
+| `POST /ports/{tcp_port}/start` | Start one mapping's TCP server |
+| `POST /ports/{tcp_port}/stop` | Stop one mapping's TCP server |
+| `POST /ports/start-all` | Start every mapping (per-mapping failures come back in `errors`) |
+| `POST /ports/stop-all` | Stop every mapping |
+
+Mappings are addressed by their **TCP listen port**. Errors use standard codes:
+`404` unknown mapping, `409` port already mapped or the listener could not be
+bound, `422` invalid value, `503` the app did not respond in time.
+
+```bash
+curl http://localhost:410/health
+curl http://localhost:410/ports
+
+# add a mapping and start it
+curl -X POST http://localhost:410/ports \
+     -H 'Content-Type: application/json' \
+     -d '{"device": "COM103", "tcp_port": 5000, "baudrate": 921600, "name": "Target"}'
+curl -X POST http://localhost:410/ports/5000/start
+
+# change the baudrate (restarts it if running) and stop it again
+curl -X PATCH http://localhost:410/ports/5000 \
+     -H 'Content-Type: application/json' -d '{"baudrate": 115200}'
+curl -X POST http://localhost:410/ports/5000/stop
+```
+
+#### `serial-tcp-ctl` — command-line client
+
+The GUI package also installs **`serial-tcp-ctl`**, a command-line counterpart of
+the API: one subcommand per endpoint, formatted output instead of raw JSON. It
+uses only the standard library (no Tkinter, no FastAPI), so it also runs on a
+machine that just talks to a Port Manager elsewhere.
+
+```bash
+serial-tcp-ctl health                 # alive? how many mappings, how many clients
+serial-tcp-ctl ports                  # one table row per mapping (alias: list)
+serial-tcp-ctl show 5000              # everything about one mapping
+serial-tcp-ctl config                 # config file, logging, api settings, mappings
+serial-tcp-ctl add COM103 5000 --baudrate 921600 --name Target --start
+serial-tcp-ctl set 5000 --baudrate 115200 --line-ending LF
+serial-tcp-ctl start 5000             # or: start all
+serial-tcp-ctl stop 5000              # or: stop all
+serial-tcp-ctl remove 5000            # alias: rm
+```
+
+```
+$ serial-tcp-ctl ports
+TCP    STATUS   LINK  DEVICE        BAUD    CLIENTS  IN     OUT     UPTIME    NAME
+5000   running  up    COM103        921600  2        86 KB  1.0 KB  00:02:08  Target
+5002   stopped  -     /dev/ttyUSB0  57600   0        0 B    0 B     00:00:00  -
+```
+
+`add` and `set` accept the mapping options as flags: `--name`, `--baudrate`,
+`--parity`, `--line-ending`, `--log-file`, `--char-delay`, `--wait-echo`, and the
+switches `--autostart/--no-autostart`, `--allow-remote/--no-allow-remote`,
+`--xonxoff/--no-xonxoff`, `--char-mode/--no-char-mode`. `set` only sends the
+options you pass, and `--tcp-port` moves a mapping to another listen port.
+
+The target is taken from the `api:` block of `./serialtcp_ports.yaml` (or `-c
+FILE`), falling back to `http://127.0.0.1:410`. Override it with `--url`, which
+accepts a port (`--url 411`), a `host:port` or a full URL — handy for a Port
+Manager on another machine. Add `--json` for the raw API response, `-v` to trace
+the HTTP exchange, and `--timeout` to change the 10 s request timeout. Exit
+status is `0` on success, `1` on a request or connection error, `2` on bad usage.
+
+Without the console script on PATH the same client runs as
+`python -m serialtcp_gui.cli`; the Windows build produces `serial-tcp-ctl.exe`
+next to `serial-tcp-gui.exe`.
+
+A port state looks like this:
+
+```json
+{
+  "tcp_port": 5000,
+  "label": "Target",
+  "device": "COM103",
+  "status": "running",
+  "running": true,
+  "serial_connected": true,
+  "clients": 2,
+  "terminal_connected": false,
+  "uptime_s": 128.4,
+  "tx_bytes": 1024,
+  "rx_bytes": 88320,
+  "reconnect_attempt": 0,
+  "listening_on": "127.0.0.1:5000",
+  "logging_to_file": false,
+  "config": { "device": "COM103", "tcp_port": 5000, "baudrate": 921600, "...": "..." }
+}
+```

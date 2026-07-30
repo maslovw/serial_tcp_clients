@@ -5,6 +5,10 @@ Config shape::
     logging:                     # optional; configures the Python logger
       file: serialtcp_gui.log    # log file path ('' or absent = no file log)
       level: INFO                # DEBUG | INFO | WARNING | ERROR | CRITICAL
+    api:                         # optional; REST control interface (see api.py)
+      enabled: true              # false = do not start the HTTP server
+      host: 127.0.0.1            # 0.0.0.0 exposes the API on the network
+      port: 410                  # HTTP listen port
     ports:
       - device: COM3
         tcp_port: 5000
@@ -27,6 +31,9 @@ from serialtcp.service import PortConfig
 
 DEFAULT_CONFIG_NAME = 'serialtcp_ports.yaml'
 
+# Default listen port of the REST control interface.
+DEFAULT_API_PORT = 410
+
 # Same record format the CLI uses, so file logs read consistently.
 _LOG_FMT = '[%(asctime)s:%(msecs)03d]:%(name)s:%(levelname)s:%(message)s'
 _LOG_DATEFMT = '%d.%m.%y %H:%M:%S'
@@ -40,6 +47,33 @@ class LogSettings:
     """Python-logger config for the GUI process (top-level ``logging`` key)."""
     file: str = ''            # path to the log file (empty = no file logging)
     level: str = 'WARNING'    # DEBUG | INFO | WARNING | ERROR | CRITICAL
+
+    def to_dict(self):
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data):
+        known = {f for f in cls.__dataclass_fields__}
+        return cls(**{k: v for k, v in data.items() if k in known})
+
+
+@dataclass
+class ApiSettings:
+    """REST control interface config for the GUI (top-level ``api`` key).
+
+    Binds to loopback by default so the control API is reachable only from the
+    machine running the GUI; set ``host: 0.0.0.0`` to expose it on the network
+    (it has no authentication).
+    """
+    enabled: bool = True
+    host: str = '127.0.0.1'
+    port: int = DEFAULT_API_PORT
+
+    @property
+    def url(self):
+        """Base URL the API is served on (loopback rendered as localhost)."""
+        host = 'localhost' if self.host in ('0.0.0.0', '127.0.0.1') else self.host
+        return 'http://{}:{}'.format(host, self.port)
 
     def to_dict(self):
         return asdict(self)
@@ -87,11 +121,21 @@ def load_log_settings(path):
     return LogSettings()
 
 
-def save_configs(path, configs, log_settings=None):
-    """Write the mappings (and, if given, logging settings) back to ``path``."""
+def load_api_settings(path):
+    """Return ApiSettings from the top-level ``api`` key (defaults if absent)."""
+    data = _read_yaml(path)
+    if isinstance(data, dict) and isinstance(data.get('api'), dict):
+        return ApiSettings.from_dict(data['api'])
+    return ApiSettings()
+
+
+def save_configs(path, configs, log_settings=None, api_settings=None):
+    """Write the mappings (and, if given, logging/API settings) back to ``path``."""
     data = {}
     if log_settings is not None:
         data['logging'] = log_settings.to_dict()
+    if api_settings is not None:
+        data['api'] = api_settings.to_dict()
     data['ports'] = [c.to_dict() for c in configs]
     with open(path, 'w') as fh:
         yaml.safe_dump(data, fh, sort_keys=False, default_flow_style=False)

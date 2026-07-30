@@ -103,6 +103,47 @@ def test_save_preserves_log_settings():
     assert [c.device for c in loaded] == ['COM3']
 
 
+def test_api_settings_default_when_absent():
+    path = tempfile.mktemp(suffix='.yaml')
+    with open(path, 'w') as fh:
+        fh.write('ports:\n  - device: COM4\n    tcp_port: 5001\n')
+    try:
+        settings = config_mod.load_api_settings(path)
+    finally:
+        os.remove(path)
+    assert settings.enabled is True
+    assert settings.host == '127.0.0.1'
+    assert settings.port == 410
+    assert settings.url == 'http://localhost:410'
+
+
+def test_api_settings_parsed():
+    path = tempfile.mktemp(suffix='.yaml')
+    with open(path, 'w') as fh:
+        fh.write('api:\n  enabled: false\n  host: 0.0.0.0\n  port: 8080\nports: []\n')
+    try:
+        settings = config_mod.load_api_settings(path)
+    finally:
+        os.remove(path)
+    assert settings.enabled is False
+    assert settings.host == '0.0.0.0'
+    assert settings.port == 8080
+
+
+def test_save_preserves_api_settings():
+    path = tempfile.mktemp(suffix='.yaml')
+    try:
+        config_mod.save_configs(path, [PortConfig(device='COM3', tcp_port=5000)],
+                                config_mod.LogSettings(),
+                                config_mod.ApiSettings(enabled=False, port=8081))
+        settings = config_mod.load_api_settings(path)
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
+    assert settings.enabled is False
+    assert settings.port == 8081
+
+
 def test_configure_logging_writes_file():
     path = tempfile.mktemp(suffix='.log')
     root = logging.getLogger()

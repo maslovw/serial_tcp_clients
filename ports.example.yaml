@@ -13,6 +13,14 @@ logging:
   file: serialtcp_gui.log    # log file path ('' or absent = no file log)
   level: INFO                # DEBUG | INFO | WARNING | ERROR | CRITICAL
 
+# Optional: REST control interface (health, config, port states, start/stop).
+# Needs the API extra: pip install "serial-tcp-clients-gui[api]".
+# Interactive documentation is served at http://<host>:<port>/docs.
+api:
+  enabled: true              # false = do not start the HTTP server
+  host: 127.0.0.1            # 0.0.0.0 exposes it on the network (no auth!)
+  port: 410                  # HTTP listen port (default 410)
+
 ports:
   - name: Console            # optional label shown on the card (defaults to device)
     device: COM3             # e.g. COM3 on Windows, /dev/ttyUSB0 on Linux

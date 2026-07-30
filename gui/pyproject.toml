@@ -16,8 +16,16 @@ keywords = ["serial", "com", "port", "tcp", "gui", "tkinter", "port manager"]
 # Tkinter is a stdlib module (not a pip package); on Linux it may need a system
 # package, e.g. Debian/Ubuntu: `apt install python3-tk`.
 dependencies = [
-    "serial-tcp-clients>=2.4.0",
+    "serial-tcp-clients>=2.6.0",
     "PyYAML>=5.1",
+]
+
+# The REST control interface (serialtcp_gui/api.py) is optional: without these
+# the GUI runs exactly as before and logs that the API was not started.
+[project.optional-dependencies]
+api = [
+    "fastapi>=0.100",
+    "uvicorn>=0.20",
 ]
 
 [tool.setuptools.dynamic]
@@ -31,6 +39,8 @@ include = ["serialtcp_gui*"]
 
 [project.scripts]
 serial-tcp-gui = "serialtcp_gui.app:main"
+# CLI client for the REST API; stdlib only, needs neither Tkinter nor the extra.
+serial-tcp-ctl = "serialtcp_gui.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/maslovw/serial_tcp_clients"
